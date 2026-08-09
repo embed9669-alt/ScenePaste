@@ -1,0 +1,10 @@
+{
+  "schema": "scenepaste/scene-template",
+  "version": 1,
+  "canvas": {"width": 800, "height": 600},
+  "instances": [
+    {"source": "sample_truck.json#0", "label": "truck", "class_id": 1, "cx_ratio": 0.42, "cy_ratio": 0.73, "h_ratio": 0.29, "flip": false, "angle": 0.0},
+    {"source": "sample_motorcycle.json#0", "label": "motorcycle", "class_id": 2, "cx_ratio": 0.72, "cy_ratio": 0.76, "h_ratio": 0.20, "flip": false, "angle": -3.0},
+    {"source": "sample_person.json#0", "label": "person", "class_id": 0, "cx_ratio": 0.60, "cy_ratio": 0.58, "h_ratio": 0.17, "flip": true, "angle": 0.0}
+  ]
+}

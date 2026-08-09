@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scenepaste"
+version = "1.0.0"
+description = "Scene-first visual studio for controllable synthetic computer-vision datasets"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "ScenePaste contributors" }]
+urls = { Homepage = "https://github.com/embed9669-alt/ScenePaste", Repository = "https://github.com/embed9669-alt/ScenePaste", Issues = "https://github.com/embed9669-alt/ScenePaste/issues" }
+keywords = [
+  "yolo", "object-detection", "instance-segmentation", "semantic-segmentation",
+  "oriented-bounding-box", "data-augmentation", "copy-paste", "synthetic-data",
+  "labelme", "computer-vision", "dataset-tool", "scene-composition", "dataset-qa",
+  "hard-example-mining", "data-curation", "webdataset"
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+  "numpy>=1.21",
+  "opencv-python>=4.5",
+  "Pillow>=9.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4", "psutil>=5.9"]
+auto = ["rembg>=2.0.50,<3", "onnxruntime>=1.16"]
+gui-qt = ["PySide6>=6.5"]
+embeddings = ["torch>=2.0", "transformers>=4.40"]
+all = ["PySide6>=6.5", "rembg>=2.0.50,<3", "onnxruntime>=1.16"]
+
+[project.scripts]
+scenepaste = "scenepaste.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scenepaste*", "compose_app*", "compose_app_qt*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+"scenepaste.resources" = ["samples/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["scenepaste", "compose_app", "compose_app_qt"]
+omit = ["tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+extend-exclude = ["samples", "generated"]
+
+[tool.ruff.lint]
+select = ["E9", "F"]
+ignore = [
+  "E501",
+  "I001",
+  "UP006",
+  "UP034",
+  "UP037",
+  "UP045",
+]
