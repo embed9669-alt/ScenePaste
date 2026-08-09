@@ -120,6 +120,20 @@ A project can store a built-in recipe name or a custom JSON path in `defaults.ob
 
 Start with `mild`, inspect the QA Dashboard and a held-out real validation set, then adjust. Strong appearance augmentation can reduce domain gap, but unrealistic colors or excessive degradation can also hurt training.
 
+## Scene editor preview
+
+In the Qt compositor, select a placed instance and use the right-panel
+**目标外观预览** group:
+
+1. enable appearance;
+2. choose a recipe (`mild` / `surveillance-object` / `legacy` / `off` / JSON path);
+3. optionally tweak brightness / contrast / saturation / blur sliders;
+4. click **换一种随机外观** to resample the recipe seed.
+
+Preview is RGB-only and WYSIWYG for save / batch apply. Labels stay on
+geometry + alpha. Large-generate still has its own run-level recipe picker
+for million-scale synthesis.
+
 ## Out of scope
 
 - region-aware recolor (vehicle paint / clothing submasks);

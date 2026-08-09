@@ -16,8 +16,8 @@ from PySide6.QtCore import Qt, Signal, QSize, QMimeData, QByteArray
 from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget,
-    QListWidgetItem, QDoubleSpinBox, QLineEdit,
-    QFormLayout, QDialog, QProgressBar, QMessageBox, QCheckBox,
+    QListWidgetItem, QDoubleSpinBox, QLineEdit, QComboBox, QGroupBox,
+    QFormLayout, QDialog, QProgressBar, QMessageBox, QCheckBox, QSlider,
 )
 
 from compose_app.models import THUMB_SIZE
@@ -122,13 +122,17 @@ class InstanceListWidget(QListWidget):
 
 
 class ControlsPanel(QWidget):
-    """Scale / rotation / flip / delete controls for the selected instance."""
+    """Scale / rotation / flip / appearance / delete for the selected instance."""
 
     scale_changed = Signal(float)
     angle_changed = Signal(float)
     flip_toggled = Signal()
     delete_clicked = Signal()
     nudge = Signal(int, int)
+    # Live preview (no undo yet); MainWindow commits after debounce / discrete actions.
+    appearance_preview = Signal()
+    appearance_committed = Signal()
+    appearance_resample = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -169,7 +173,80 @@ class ControlsPanel(QWidget):
         btn_row.addWidget(self.del_btn)
         layout.addLayout(btn_row)
 
+        appearance = QGroupBox("目标外观预览")
+        appearance.setToolTip(
+            "仅改变贴图 RGB 外观，不移动标签。批量生成仍可用「目标外观 Recipe」。"
+        )
+        app_form = QFormLayout(appearance)
+        self.appearance_enable = QCheckBox("启用外观增强")
+        self.appearance_enable.toggled.connect(self._on_appearance_discrete)
+        app_form.addRow(self.appearance_enable)
+
+        self.appearance_recipe = QComboBox()
+        self.appearance_recipe.setEditable(True)
+        self.appearance_recipe.addItems(["mild", "surveillance-object", "legacy", "off"])
+        self.appearance_recipe.setToolTip("内置 Recipe 名，或自定义 JSON 路径")
+        self.appearance_recipe.currentTextChanged.connect(self._on_appearance_discrete)
+        app_form.addRow("Recipe:", self.appearance_recipe)
+
+        self.appearance_resample_btn = QPushButton("换一种随机外观")
+        self.appearance_resample_btn.setToolTip("更换随机种子，重新采样 Recipe 效果")
+        self.appearance_resample_btn.clicked.connect(self.appearance_resample)
+        app_form.addRow(self.appearance_resample_btn)
+
+        self.brightness_slider = self._pct_slider(-20, 20, 0)
+        self.brightness_slider.valueChanged.connect(self._on_appearance_live)
+        self.brightness_slider.sliderReleased.connect(self.appearance_committed.emit)
+        app_form.addRow("亮度:", self.brightness_slider)
+
+        self.contrast_slider = self._pct_slider(70, 130, 100)
+        self.contrast_slider.valueChanged.connect(self._on_appearance_live)
+        self.contrast_slider.sliderReleased.connect(self.appearance_committed.emit)
+        app_form.addRow("对比度:", self.contrast_slider)
+
+        self.saturation_slider = self._pct_slider(70, 130, 100)
+        self.saturation_slider.valueChanged.connect(self._on_appearance_live)
+        self.saturation_slider.sliderReleased.connect(self.appearance_committed.emit)
+        app_form.addRow("饱和度:", self.saturation_slider)
+
+        self.blur_slider = self._pct_slider(0, 20, 0)  # 0.0 .. 2.0 sigma ×10
+        self.blur_slider.valueChanged.connect(self._on_appearance_live)
+        self.blur_slider.sliderReleased.connect(self.appearance_committed.emit)
+        app_form.addRow("模糊:", self.blur_slider)
+
+        layout.addWidget(appearance)
+        self._appearance_widgets = [
+            self.appearance_enable, self.appearance_recipe, self.appearance_resample_btn,
+            self.brightness_slider, self.contrast_slider, self.saturation_slider,
+            self.blur_slider,
+        ]
+
         layout.addStretch(1)
+
+    @staticmethod
+    def _pct_slider(lo: int, hi: int, value: int) -> QSlider:
+        slider = QSlider(Qt.Horizontal)
+        slider.setRange(lo, hi)
+        slider.setValue(value)
+        slider.setSingleStep(1)
+        return slider
+
+    def appearance_values(self) -> dict:
+        return {
+            "enabled": bool(self.appearance_enable.isChecked()),
+            "recipe": self.appearance_recipe.currentText().strip() or "mild",
+            "brightness": self.brightness_slider.value() / 100.0,
+            "contrast": self.contrast_slider.value() / 100.0,
+            "saturation": self.saturation_slider.value() / 100.0,
+            "blur": self.blur_slider.value() / 10.0,
+        }
+
+    def _on_appearance_live(self, *_args) -> None:
+        self.appearance_preview.emit()
+
+    def _on_appearance_discrete(self, *_args) -> None:
+        self.appearance_preview.emit()
+        self.appearance_committed.emit()
 
     def reflect(self, doc: Document) -> None:
         """Update spinboxes from the document's current selection."""
@@ -179,11 +256,15 @@ class ControlsPanel(QWidget):
             self.angle_spin.setEnabled(False)
             self.flip_btn.setEnabled(False)
             self.del_btn.setEnabled(False)
+            for w in self._appearance_widgets:
+                w.setEnabled(False)
             return
         self.scale_spin.setEnabled(True)
         self.angle_spin.setEnabled(True)
         self.flip_btn.setEnabled(True)
         self.del_btn.setEnabled(True)
+        for w in self._appearance_widgets:
+            w.setEnabled(True)
         # Block signals to avoid feedback loops.
         self.scale_spin.blockSignals(True)
         self.angle_spin.blockSignals(True)
@@ -191,6 +272,103 @@ class ControlsPanel(QWidget):
         self.angle_spin.setValue(float(inst.angle) % 360.0)
         self.scale_spin.blockSignals(False)
         self.angle_spin.blockSignals(False)
+
+        for w in self._appearance_widgets:
+            w.blockSignals(True)
+        self.appearance_enable.setChecked(bool(inst.appearance_enabled))
+        recipe = str(inst.appearance_recipe or "mild")
+        idx = self.appearance_recipe.findText(recipe)
+        if idx >= 0:
+            self.appearance_recipe.setCurrentIndex(idx)
+        else:
+            self.appearance_recipe.setEditText(recipe)
+        self.brightness_slider.setValue(int(round(float(inst.appearance_brightness) * 100)))
+        self.contrast_slider.setValue(int(round(float(inst.appearance_contrast) * 100)))
+        self.saturation_slider.setValue(int(round(float(inst.appearance_saturation) * 100)))
+        self.blur_slider.setValue(int(round(float(inst.appearance_blur) * 10)))
+        for w in self._appearance_widgets:
+            w.blockSignals(False)
+
+
+class GenerationDefaultsPanel(QWidget):
+    """Always-visible main-window controls for batch / large-generation defaults."""
+
+    changed = Signal()
+    apply_to_instances = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        box = QGroupBox("批量生成默认")
+        box.setToolTip("这些选项会用于「批量套用」和「大规模生成」，无需再进二级对话框才能设置。")
+        form = QFormLayout(box)
+
+        self.scene_recipe = QComboBox()
+        self.scene_recipe.setEditable(True)
+        self.scene_recipe.addItems(["", "camera-mild", "surveillance", "low-light", "clean"])
+        self.scene_recipe.setToolTip("整图相机域增强 Recipe；空=关闭")
+        self.scene_recipe.currentTextChanged.connect(lambda *_: self.changed.emit())
+        form.addRow("场景 Recipe:", self.scene_recipe)
+
+        self.object_recipe = QComboBox()
+        self.object_recipe.setEditable(True)
+        self.object_recipe.addItems(["", "mild", "surveillance-object", "legacy", "off"])
+        self.object_recipe.setToolTip("批量默认目标外观；空=仅用实例自身外观设置")
+        self.object_recipe.currentTextChanged.connect(lambda *_: self.changed.emit())
+        form.addRow("目标外观:", self.object_recipe)
+
+        self.blend = QComboBox()
+        self.blend.addItems(["alpha", "gaussian", "hard"])
+        self.blend.currentTextChanged.connect(lambda *_: self.changed.emit())
+        form.addRow("边缘 Blend:", self.blend)
+
+        self.empty_scene = QDoubleSpinBox()
+        self.empty_scene.setRange(0.0, 1.0)
+        self.empty_scene.setDecimals(2)
+        self.empty_scene.setSingleStep(0.05)
+        self.empty_scene.setToolTip("仅大规模生成使用：纯背景负样本比例")
+        self.empty_scene.valueChanged.connect(lambda *_: self.changed.emit())
+        form.addRow("负样本比例:", self.empty_scene)
+
+        self.apply_btn = QPushButton("应用到全部实例外观")
+        self.apply_btn.setToolTip("把上方目标外观 Recipe 写进当前画布全部实例并开启预览")
+        self.apply_btn.clicked.connect(self.apply_to_instances)
+        form.addRow(self.apply_btn)
+
+        tip = QLabel("批量套用会带上目标外观；大规模生成还会用场景 Recipe / Blend / 负样本。")
+        tip.setWordWrap(True)
+        tip.setStyleSheet("color: #888; font-size: 11px;")
+        form.addRow(tip)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(box)
+
+    def reflect(self, doc: Document) -> None:
+        widgets = (self.scene_recipe, self.object_recipe, self.blend, self.empty_scene)
+        for w in widgets:
+            w.blockSignals(True)
+        self._set_combo(self.scene_recipe, getattr(doc, "scene_recipe", "") or "")
+        self._set_combo(self.object_recipe, getattr(doc, "object_appearance_recipe", "") or "")
+        blend = str(getattr(doc, "blend_mode", "alpha") or "alpha")
+        idx = self.blend.findText(blend)
+        self.blend.setCurrentIndex(max(0, idx))
+        self.empty_scene.setValue(float(getattr(doc, "empty_scene_prob", 0.0) or 0.0))
+        for w in widgets:
+            w.blockSignals(False)
+
+    @staticmethod
+    def _set_combo(combo: QComboBox, text: str) -> None:
+        idx = combo.findText(text)
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+        else:
+            combo.setEditText(text)
+
+    def apply_to_document(self, doc: Document) -> None:
+        doc.scene_recipe = self.scene_recipe.currentText().strip()
+        doc.object_appearance_recipe = self.object_recipe.currentText().strip()
+        doc.blend_mode = self.blend.currentText().strip() or "alpha"
+        doc.empty_scene_prob = float(self.empty_scene.value())
 
 
 class BatchProgressDialog(QDialog):
@@ -263,19 +441,18 @@ class ProjectSettingsDialog(QDialog):
     caller passes the live Document; changes apply on accept.
     """
 
-    FORMATS = ["detect", "seg", "both", "coco", "semantic", "obb"]
+    FORMATS = ["detect", "seg", "both", "coco", "semantic", "obb", "all"]
 
     def __init__(self, doc: Document, parent=None):
         super().__init__(parent)
         self.setWindowTitle("项目设置")
         self.setModal(True)
-        self.setMinimumWidth(420)
+        self.setMinimumWidth(460)
         self._doc = doc
 
         layout = QVBoxLayout(self)
         form = QFormLayout()
 
-        from PySide6.QtWidgets import QComboBox
         self.format_combo = QComboBox()
         self.format_combo.addItems(self.FORMATS)
         self.format_combo.setCurrentText(doc.output_format or "detect")
@@ -284,7 +461,6 @@ class ProjectSettingsDialog(QDialog):
         self.class_map_edit = QLineEdit(doc.class_map_text)
         form.addRow("类别映射:", self.class_map_edit)
 
-        from PySide6.QtWidgets import QCheckBox
         self.shadow_check = QCheckBox("合成时加脚底阴影")
         self.shadow_check.setChecked(doc.do_shadow)
         form.addRow("", self.shadow_check)
@@ -300,6 +476,34 @@ class ProjectSettingsDialog(QDialog):
         self.keep_pos_check = QCheckBox("切换保持相对位置")
         self.keep_pos_check.setChecked(doc.keep_position)
         form.addRow("", self.keep_pos_check)
+
+        self.scene_recipe = QComboBox()
+        self.scene_recipe.setEditable(True)
+        self.scene_recipe.addItems(["", "camera-mild", "surveillance", "low-light", "clean"])
+        GenerationDefaultsPanel._set_combo(self.scene_recipe, getattr(doc, "scene_recipe", "") or "")
+        form.addRow("场景 Recipe:", self.scene_recipe)
+
+        self.object_recipe = QComboBox()
+        self.object_recipe.setEditable(True)
+        self.object_recipe.addItems(["", "mild", "surveillance-object", "legacy", "off"])
+        GenerationDefaultsPanel._set_combo(
+            self.object_recipe, getattr(doc, "object_appearance_recipe", "") or "",
+        )
+        form.addRow("目标外观 Recipe:", self.object_recipe)
+
+        self.blend = QComboBox()
+        self.blend.addItems(["alpha", "gaussian", "hard"])
+        blend = str(getattr(doc, "blend_mode", "alpha") or "alpha")
+        idx = self.blend.findText(blend)
+        self.blend.setCurrentIndex(max(0, idx))
+        form.addRow("边缘 Blend:", self.blend)
+
+        self.empty_scene = QDoubleSpinBox()
+        self.empty_scene.setRange(0.0, 1.0)
+        self.empty_scene.setDecimals(2)
+        self.empty_scene.setSingleStep(0.05)
+        self.empty_scene.setValue(float(getattr(doc, "empty_scene_prob", 0.0) or 0.0))
+        form.addRow("负样本比例:", self.empty_scene)
 
         layout.addLayout(form)
 
@@ -332,6 +536,22 @@ class ProjectSettingsDialog(QDialog):
             if getattr(self._doc, attr) != widget.isChecked():
                 setattr(self._doc, attr, widget.isChecked())
                 changed = True
+        new_scene = self.scene_recipe.currentText().strip()
+        new_object = self.object_recipe.currentText().strip()
+        new_blend = self.blend.currentText().strip() or "alpha"
+        new_empty = float(self.empty_scene.value())
+        if self._doc.scene_recipe != new_scene:
+            self._doc.scene_recipe = new_scene
+            changed = True
+        if self._doc.object_appearance_recipe != new_object:
+            self._doc.object_appearance_recipe = new_object
+            changed = True
+        if self._doc.blend_mode != new_blend:
+            self._doc.blend_mode = new_blend
+            changed = True
+        if abs(float(self._doc.empty_scene_prob) - new_empty) > 1e-9:
+            self._doc.empty_scene_prob = new_empty
+            changed = True
         if changed:
             self._doc._emit()
         return changed

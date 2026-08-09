@@ -96,7 +96,7 @@ def composite_from_doc(doc, instances=None) -> Image.Image:
     Honours ``doc.do_shadow`` / ``doc.do_color_match`` when present.
     """
     from compose_app.rendering import (
-        apply_color_match, bbox_of_rendered, draw_shadow, render_instance,
+        apply_color_match, bbox_of_rendered, draw_shadow,
     )
 
     bg_path = doc.current_background()
@@ -117,7 +117,7 @@ def composite_from_doc(doc, instances=None) -> Image.Image:
             continue
         cutout = doc.cutouts[inst.cutout_index]
         target_h = max(4, int(round(inst.h_ratio * h)))
-        rendered = render_instance(cutout.rgba, target_h, inst.flip, inst.angle)
+        rendered = inst.get_rendered(cutout.rgba, target_h, class_label=cutout.label)
         x = int(round(inst.cx - rendered.width / 2.0))
         y = int(round(inst.cy - rendered.height / 2.0))
         if do_shadow:
@@ -140,6 +140,13 @@ class _InstanceSnap:
     flip: bool
     angle: float
     uid: int = 0
+    appearance_enabled: bool = False
+    appearance_recipe: str = "mild"
+    appearance_seed: int = 0
+    appearance_brightness: float = 0.0
+    appearance_contrast: float = 1.0
+    appearance_saturation: float = 1.0
+    appearance_blur: float = 0.0
 
     @classmethod
     def from_instance(cls, inst, bg_w: int, bg_h: int) -> "_InstanceSnap":
@@ -151,6 +158,13 @@ class _InstanceSnap:
             flip=bool(inst.flip),
             angle=float(inst.angle),
             uid=int(inst.uid),
+            appearance_enabled=bool(getattr(inst, "appearance_enabled", False)),
+            appearance_recipe=str(getattr(inst, "appearance_recipe", "mild") or "mild"),
+            appearance_seed=int(getattr(inst, "appearance_seed", 0) or 0),
+            appearance_brightness=float(getattr(inst, "appearance_brightness", 0.0) or 0.0),
+            appearance_contrast=float(getattr(inst, "appearance_contrast", 1.0) or 1.0),
+            appearance_saturation=float(getattr(inst, "appearance_saturation", 1.0) or 1.0),
+            appearance_blur=float(getattr(inst, "appearance_blur", 0.0) or 0.0),
         )
 
     def to_instance(self, bg_w: int, bg_h: int, uid: int = 0):
@@ -163,6 +177,13 @@ class _InstanceSnap:
             flip=self.flip,
             angle=self.angle,
             uid=uid if uid else self.uid,
+            appearance_enabled=bool(self.appearance_enabled),
+            appearance_recipe=str(self.appearance_recipe or "mild"),
+            appearance_seed=int(self.appearance_seed),
+            appearance_brightness=float(self.appearance_brightness),
+            appearance_contrast=float(self.appearance_contrast),
+            appearance_saturation=float(self.appearance_saturation),
+            appearance_blur=float(self.appearance_blur),
         )
 
 
@@ -187,7 +208,8 @@ class BatchApplyWorker(QThread):
     def __init__(self, cutouts, instance_snaps, background_paths, output_dir: Path,
                  class_map_text: str, output_format: str = "detect",
                  run_id: Optional[str] = None, do_shadow: bool = False,
-                 do_color_match: bool = False, parent=None):
+                 do_color_match: bool = False, scene_recipe: Optional[str] = None,
+                 parent=None):
         super().__init__(parent)
         self.cutouts = list(cutouts)
         self.snaps = list(instance_snaps)
@@ -198,6 +220,7 @@ class BatchApplyWorker(QThread):
         self.run_id = run_id or _dt.datetime.now().strftime("batch_%Y%m%d_%H%M%S")
         self.do_shadow = bool(do_shadow)
         self.do_color_match = bool(do_color_match)
+        self.scene_recipe = str(scene_recipe or "").strip()
         self._cancel = False
 
     def cancel(self) -> None:
@@ -212,7 +235,7 @@ class BatchApplyWorker(QThread):
             (out / "labels" / "train").mkdir(parents=True, exist_ok=True)
             (out / "previews").mkdir(parents=True, exist_ok=True)
             from compose_app.rendering import (
-                apply_color_match, bbox_of_rendered, draw_shadow, render_instance,
+                apply_color_match, bbox_of_rendered, draw_shadow,
             )
             from compose_app import segmentation as gui_seg
             from scenepaste.formats import CocoWriter, write_data_yaml
@@ -249,7 +272,9 @@ class BatchApplyWorker(QThread):
                         asset = _cutout_to_asset(cutout)
                         inst = snap.to_instance(w, h, uid=len(placed_instances) + 1)
                         target_h = max(4, int(round(inst.h_ratio * h)))
-                        rendered = render_instance(cutout.rgba, target_h, inst.flip, inst.angle)
+                        rendered = inst.get_rendered(
+                            cutout.rgba, target_h, class_label=cutout.label,
+                        )
                         x = int(round(inst.cx - rendered.width / 2.0))
                         y = int(round(inst.cy - rendered.height / 2.0))
                         if self.do_shadow:
@@ -266,6 +291,17 @@ class BatchApplyWorker(QThread):
                         scale = target_h / max(1, cutout.rgba.height)
                         annotations.append((asset, box, inst.flip, (scale, x, y, inst.flip)))
                         placed_instances.append(inst)
+
+                    if self.scene_recipe:
+                        from scenepaste.core.recipes import apply_scene_recipe, load_augmentation_recipe
+                        import random as _rng
+                        recipe = load_augmentation_recipe(self.scene_recipe)
+                        if recipe is not None:
+                            bgr_out = np.asarray(composite.convert("RGB"))[..., ::-1].copy()
+                            bgr_out, _effects = apply_scene_recipe(
+                                bgr_out, recipe, _rng.Random(hash((self.run_id, i)) & 0xFFFFFFFF),
+                            )
+                            composite = Image.fromarray(bgr_out[..., ::-1], "RGB").convert("RGBA")
 
                     stem = f"{self.run_id}_{i:06d}"
                     jpg_path = out / "images" / "train" / f"{stem}.jpg"

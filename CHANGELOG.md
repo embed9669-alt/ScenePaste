@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Scene editor **目标外观预览** panel: per-instance enable/recipe/sliders/resample with live canvas preview (RGB-only; labels unchanged).
+- Main-window **批量生成默认** panel (scene recipe / object appearance / blend / empty-scene) shared by 批量套用, 大规模生成, project save/load, and project settings.
+
 ## [1.1.0] — 2026-08-09
 
 ### Added

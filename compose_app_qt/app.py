@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 from compose_app.models import Instance
 
 from .canvas import CanvasView
-from .panels import ControlsPanel, CutoutThumbWidget, InstanceListWidget
+from .panels import ControlsPanel, CutoutThumbWidget, GenerationDefaultsPanel, InstanceListWidget
 from .state import Document
 from .theme import qss_for
 from .undo import AddInstanceCommand, DeleteSelectedCommand, TransformCommand
@@ -51,6 +51,20 @@ def _instance_snapshots_equal(a: List[Instance], b: List[Instance]) -> bool:
             or abs(left.h_ratio - right.h_ratio) > 1e-9
             or bool(left.flip) != bool(right.flip)
             or abs((left.angle % 360.0) - (right.angle % 360.0)) > 1e-6
+            or bool(getattr(left, "appearance_enabled", False))
+            != bool(getattr(right, "appearance_enabled", False))
+            or str(getattr(left, "appearance_recipe", ""))
+            != str(getattr(right, "appearance_recipe", ""))
+            or int(getattr(left, "appearance_seed", 0))
+            != int(getattr(right, "appearance_seed", 0))
+            or abs(float(getattr(left, "appearance_brightness", 0.0))
+                   - float(getattr(right, "appearance_brightness", 0.0))) > 1e-6
+            or abs(float(getattr(left, "appearance_contrast", 1.0))
+                   - float(getattr(right, "appearance_contrast", 1.0))) > 1e-6
+            or abs(float(getattr(left, "appearance_saturation", 1.0))
+                   - float(getattr(right, "appearance_saturation", 1.0))) > 1e-6
+            or abs(float(getattr(left, "appearance_blur", 0.0))
+                   - float(getattr(right, "appearance_blur", 0.0))) > 1e-6
         ):
             return False
     return True
@@ -125,11 +139,21 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(QLabel("实例"))
         right_layout.addWidget(self.instance_list, 1)
 
+        self.gen_defaults = GenerationDefaultsPanel()
+        self.gen_defaults.changed.connect(self._on_generation_defaults_changed)
+        self.gen_defaults.apply_to_instances.connect(self._apply_default_appearance_to_instances)
+        self.gen_defaults.reflect(self.doc)
+        right_layout.addWidget(self.gen_defaults)
+
         self.controls = ControlsPanel()
         self.controls.scale_changed.connect(self._on_scale_changed)
         self.controls.angle_changed.connect(self._on_angle_changed)
         self.controls.flip_toggled.connect(self._on_flip)
         self.controls.delete_clicked.connect(self.delete_selected)
+        self.controls.appearance_preview.connect(self._on_appearance_preview)
+        self.controls.appearance_committed.connect(self._on_appearance_committed)
+        self.controls.appearance_resample.connect(self._on_appearance_resample)
+        self._appearance_before = None
         # Live wheel/Shift-drag must refresh spinboxes without a full doc emit.
         self.canvas.transform_preview.connect(lambda: self.controls.reflect(self.doc))
         right_layout.addWidget(self.controls)
@@ -138,7 +162,7 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([220, 720, 240])
+        splitter.setSizes([220, 700, 280])
         outer.addWidget(splitter, 1)
 
         self.setCentralWidget(central)
@@ -263,6 +287,21 @@ class MainWindow(QMainWindow):
             self.doc.class_map_text = ",".join(f"{k}={v}" for k,v in sorted(project.class_map.items(), key=lambda kv: kv[1]))
         if project.output_dir is not None:
             self.doc.output_dir = project.output_dir
+        defaults = dict(project.defaults or {})
+        if defaults.get("output_format"):
+            self.doc.output_format = str(defaults["output_format"])
+        if "augmentation_recipe" in defaults:
+            self.doc.scene_recipe = str(defaults.get("augmentation_recipe") or "")
+        if "object_appearance_recipe" in defaults:
+            self.doc.object_appearance_recipe = str(defaults.get("object_appearance_recipe") or "")
+        if defaults.get("blend_mode"):
+            self.doc.blend_mode = str(defaults["blend_mode"])
+        if "empty_scene_prob" in defaults:
+            try:
+                self.doc.empty_scene_prob = float(defaults["empty_scene_prob"])
+            except (TypeError, ValueError):
+                pass
+        self.gen_defaults.reflect(self.doc)
         if project.objects_dir and project.objects_dir.is_dir():
             self.load_objects(project.objects_dir)
         if project.backgrounds_dir and project.backgrounds_dir.is_dir():
@@ -294,8 +333,8 @@ class MainWindow(QMainWindow):
                 scene_template=getattr(self, "_active_scene_template", None),
                 defaults={
                     "workers": 0,
-                    "output_format": self.doc.output_format,
                     "preview_ratio": 0.01,
+                    **self.doc.generation_defaults(),
                 },
             )
             project.save()
@@ -312,7 +351,8 @@ class MainWindow(QMainWindow):
 
     def open_large_generation(self) -> None:
         from .large_generate import LargeGenerationDialog
-        defaults = {}
+        self.gen_defaults.apply_to_document(self.doc)
+        defaults = dict(self.doc.generation_defaults())
         distribution_profile = None
         scene_template = getattr(self, "_active_scene_template", None)
         project_path = getattr(self, "_project_manifest", None)
@@ -320,7 +360,9 @@ class MainWindow(QMainWindow):
             try:
                 from scenepaste.project import ScenePasteProject
                 project = ScenePasteProject.load(Path(project_path))
-                defaults = dict(project.defaults or {})
+                # Main-window defaults win; fill only missing keys from project.
+                for key, value in dict(project.defaults or {}).items():
+                    defaults.setdefault(key, value)
                 distribution_profile = project.distribution_profile
                 scene_template = project.scene_template or scene_template
             except Exception:
@@ -415,6 +457,34 @@ class MainWindow(QMainWindow):
         has_data = bool(self.doc.cutouts) and bool(self.doc.background_paths)
         self._empty_banner.setVisible(not has_data)
 
+    def _on_generation_defaults_changed(self) -> None:
+        self.gen_defaults.apply_to_document(self.doc)
+
+    def _apply_default_appearance_to_instances(self) -> None:
+        """Copy the main-window default object recipe onto all placed instances."""
+        import random
+        self.gen_defaults.apply_to_document(self.doc)
+        recipe = str(self.doc.object_appearance_recipe or "").strip()
+        if not recipe or recipe.lower() == "off":
+            QMessageBox.information(
+                self, "目标外观",
+                "请先在「批量生成默认」里选择一个目标外观 Recipe（例如 mild）。",
+            )
+            return
+        if not self.doc.instances:
+            QMessageBox.information(self, "目标外观", "当前画布没有实例。")
+            return
+        before = self.doc.snapshot()
+        for inst in self.doc.instances:
+            inst.appearance_enabled = True
+            inst.appearance_recipe = recipe
+            if int(inst.appearance_seed or 0) == 0:
+                inst.appearance_seed = int(random.randint(1, 2**31 - 1))
+            inst.invalidate_cache()
+        self._push_transform(before)
+        self.doc._emit()
+        self.statusBar().showMessage(f"已将外观 Recipe「{recipe}」应用到全部实例", 4000)
+
     # ------------------------------------------------------------ undo stack
     @property
     def _undo_stack(self):
@@ -479,6 +549,7 @@ class MainWindow(QMainWindow):
         dlg = ProjectSettingsDialog(self.doc, self)
         if not dlg.apply_to_document():
             return
+        self.gen_defaults.reflect(self.doc)
         self.statusBar().showMessage("项目设置已更新", 3000)
         # Class-map edits only take effect after reloading objects.
         if (
@@ -664,6 +735,54 @@ class MainWindow(QMainWindow):
         inst.invalidate_cache()
         self._push_transform(before)
 
+    def _apply_appearance_from_controls(self) -> None:
+        inst = self.doc.selected()
+        if inst is None:
+            return
+        vals = self.controls.appearance_values()
+        inst.appearance_enabled = bool(vals["enabled"])
+        inst.appearance_recipe = str(vals["recipe"] or "mild")
+        inst.appearance_brightness = float(vals["brightness"])
+        inst.appearance_contrast = float(vals["contrast"])
+        inst.appearance_saturation = float(vals["saturation"])
+        inst.appearance_blur = float(vals["blur"])
+        inst.invalidate_cache()
+
+    def _on_appearance_preview(self) -> None:
+        """Live RGB preview while dragging sliders (undo committed on release)."""
+        if self.doc.selected() is None:
+            return
+        if self._appearance_before is None:
+            self._appearance_before = self.doc.snapshot()
+        self._apply_appearance_from_controls()
+        self.doc._emit()
+
+    def _on_appearance_committed(self) -> None:
+        if self.doc.selected() is None:
+            self._appearance_before = None
+            return
+        if self._appearance_before is None:
+            self._appearance_before = self.doc.snapshot()
+            self._apply_appearance_from_controls()
+            self.doc._emit()
+        self._push_transform(self._appearance_before)
+        self._appearance_before = None
+
+    def _on_appearance_resample(self) -> None:
+        import random
+        inst = self.doc.selected()
+        if inst is None:
+            return
+        before = self.doc.snapshot()
+        inst.appearance_enabled = True
+        inst.appearance_seed = int(random.randint(0, 2**31 - 1))
+        if not str(inst.appearance_recipe or "").strip():
+            inst.appearance_recipe = "mild"
+        inst.invalidate_cache()
+        self._push_transform(before)
+        self.controls.reflect(self.doc)
+        self.doc._emit()
+
     def _push_transform(self, before) -> None:
         """Push one undo entry for a completed transform; skip no-ops."""
         after = self.doc.snapshot()
@@ -811,9 +930,24 @@ class MainWindow(QMainWindow):
             return
         count = choice_counts[choices.index(picked)]
 
+        self.gen_defaults.apply_to_document(self.doc)
         bg_w, bg_h = self.doc.bg_size
         from .workers import BatchApplyWorker, _InstanceSnap
-        snaps = [_InstanceSnap.from_instance(i, bg_w, bg_h) for i in self.doc.instances]
+        import random as _random
+        snaps = []
+        default_recipe = str(self.doc.object_appearance_recipe or "").strip()
+        for inst in self.doc.instances:
+            snap = _InstanceSnap.from_instance(inst, bg_w, bg_h)
+            if (
+                default_recipe
+                and default_recipe.lower() != "off"
+                and not snap.appearance_enabled
+            ):
+                snap.appearance_enabled = True
+                snap.appearance_recipe = default_recipe
+                if int(snap.appearance_seed or 0) == 0:
+                    snap.appearance_seed = int(_random.randint(1, 2**31 - 1))
+            snaps.append(snap)
         targets = self.doc.background_paths[
             self.doc.background_index + 1: self.doc.background_index + 1 + count
         ]
@@ -827,6 +961,7 @@ class MainWindow(QMainWindow):
             output_format=self.doc.output_format,
             do_shadow=self.doc.do_shadow,
             do_color_match=self.doc.do_color_match,
+            scene_recipe=self.doc.scene_recipe,
         )
         from .panels import BatchProgressDialog
         self._batch_dialog = BatchProgressDialog(total=len(targets),

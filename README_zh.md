@@ -6,18 +6,18 @@
 
 ScenePaste 是一个本地运行的桌面软件 + CLI，用真实目标素材和真实背景构建**可控的合成训练数据**。它不是简单地随机贴图，而是把 Copy-Paste 组织成完整的数据生产流程：
 
-**目标素材 → 场景编辑 → 场景模板 → 批量合成 → 自动标注 → 可视化检查 → 数据 QA → 模型难例回灌 → 数据策展 / 分片**
+**目标素材 → 场景编辑 → 目标外观 → 场景模板 → 批量合成 → 自动标注 → 可视化检查 → 数据 QA → 模型难例回灌 → 数据策展 / 分片**
 
-> **当前版本：v1.1.0 Stable。** 在 v1.0 生产基线之上新增可审计的“目标级外观 Recipe”，同时保持确定性/可恢复生成与标注几何一致性。合成数据进入训练前仍建议人工抽检，并使用独立真实验证集/测试集验证实际收益。
+> **当前版本：v1.1.0 Stable。** 在 v1.0 生产基线之上，增加可审计的目标级外观 Recipe、主界面批量生成默认项，以及选中实例时的实时外观预览。合成数据进入训练前仍建议人工抽检，并用独立真实验证集/测试集验证收益。
 
-![ScenePaste 桌面编辑器](docs/images/ui_overview.png)
+![ScenePaste 桌面编辑器：右侧可见批量生成默认 + 目标外观预览](docs/images/ui_overview.png)
 
 <details>
 <summary>浅色主题与项目设置</summary>
 
-![浅色主题](docs/images/ui_overview_light.png)
+![浅色主题（同样展示右侧新面板）](docs/images/ui_overview_light.png)
 
-![项目设置](docs/images/ui_settings.png)
+![项目设置：场景 / 目标外观 Recipe、Blend、负样本比例](docs/images/ui_settings.png)
 
 </details>
 
@@ -68,20 +68,20 @@ ScenePaste **不是新的 Copy-Paste 论文算法**。它的价值是把 Copy-Pa
 ## 主要功能
 
 - **PySide6 可视化场景编辑器**：拖动、缩放、旋转、翻转和复制目标，并按前后层级正确处理遮挡。
-- **关系约束 Scene Template v2**：支持位置/尺度/角度/出现概率/翻转概率/同类素材替换，以及 `left_of/right_of/above/below/min_distance/max_distance`。
+- **主界面批量生成默认**：右侧常驻场景 Recipe / 目标外观 / Blend / 负样本比例；批量套用、大规模生成与工程保存共用。
+- **目标外观实时预览**：选中实例后可启用 Recipe，调节亮度/对比度/饱和度/模糊，或「换一种」重采样；只改 RGB，标签几何不变。
+- **目标外观 Recipe**：按类别控制贴图光度与低分辨率退化（alpha-aware 边缘），并写入每实例 metadata / QA 覆盖统计。
+- **场景增强 Recipe + 融合模式**：整图相机/监控/弱光增强，支持 alpha / hard / gaussian。
+- **关系约束 Scene Template v2**：位置/尺度/角度/出现概率/翻转/同类替换，以及 `left_of/right_of/above/below/min_distance/max_distance`。
 - **数据集浏览器**：可视化 Detect / Seg / OBB / COCO / Semantic 标注。
-- **素材搜索 + 响应式缩略图浏览**：快速筛选和浏览目标素材。
-- **LabelMe / X-AnyLabeling 输入**及 polygon 提取。
-- 可选 **rembg 自动抠图**。
-- **约束式放置**：支持通用 `paste_zone`、类别专属 `paste_zone:<class>`、透视缩放和模板关系约束。
-- **Mask-first 标注链路**：按照最终可见区域处理遮挡。
+- **素材搜索 + 响应式缩略图浏览**。
+- **LabelMe / X-AnyLabeling 输入**及 polygon 提取；可选 **rembg 自动抠图**。
+- **约束式放置**：通用 / 类别专属 `paste_zone`、透视缩放、模板关系约束。
+- **Mask-first 标注链路**：按最终可见区域处理遮挡。
 - 支持 **YOLO Detect / Segment / OBB、Semantic Segmentation、COCO Instances**。
-- 类别均衡采样、背景均衡轮转，以及可控的纯背景负样本。
-- **真实数据分布学习生成**：可从 LabelMe、YOLO Detect/Seg/OBB、COCO 学习类别、目标数、位置、尺度以及目标拥挤/重叠分布，并按权重混合多个 Domain Profile。
-- **可恢复多进程生成**：每个 index 独立确定性计划、受限任务队列、SQLite Run 状态。
-- 固定随机种子、Run ID、崩溃安全 metadata、背景 LRU 缓存、Preview 抽样。
-- **目标外观 Recipe**：按类别控制单个贴图的亮度/对比度、色相/饱和度、Gamma、色温、模糊、噪声、JPEG、运动模糊、锐度与低分辨率退化，并记录每实例 metadata。
-- **场景增强 Recipe + 融合模式**：对整张合成图做可复现的相机/监控/弱光外观增强，支持 alpha / hard / gaussian 融合。
+- 类别/背景均衡采样，以及可控纯背景负样本。
+- **真实数据分布学习生成** + Domain Profile 混合。
+- **可恢复多进程生成**、固定种子、Run ID、崩溃安全 metadata。
 - **QA Dashboard + 数据策展**：HTML + JSON，检查完整性、完全重复、pHash 感知近重复、cv-lite embedding 多样性、跨 split 泄漏、类别/尺度/位置分布、复用度以及目标分布偏差。
 - **Detect / Seg / OBB Hard Example Mining**：读取 YOLO 风格预测 TXT，统计 FN / FP / 低置信 TP / 几何 IoU 不足，导出难例列表与可再次用于生成的 Hard Profile。
 - **真实 vs 合成对比 Dashboard**：比较类别、每图目标数、位置、宽高、面积、宽高比和轻量视觉域差异。

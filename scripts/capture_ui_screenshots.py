@@ -65,7 +65,7 @@ def _prefer_background(win: MainWindow, keyword: str = "road") -> None:
 
 
 def _compose_demo_scene(win: MainWindow) -> None:
-    """Place a few cutouts in a readable, non-overlapping hero layout."""
+    """Place cutouts and enable appearance so the right panel demos clearly."""
     _prefer_background(win, "road")
     w, h = win.doc.bg_size
     if w <= 0 or h <= 0 or not win.doc.cutouts:
@@ -79,11 +79,10 @@ def _compose_demo_scene(win: MainWindow) -> None:
     for i in range(len(win.doc.cutouts)):
         if i not in order:
             order.append(i)
-    # Grounded across the lower third; tilted so OBB / rotate demos read clearly.
     layout = [
-        (0.24, 0.76, 0.38, 16.0, False),   # person
-        (0.55, 0.74, 0.30, -20.0, False), # truck
-        (0.82, 0.80, 0.18, 26.0, False),  # motorcycle
+        (0.24, 0.76, 0.38, 16.0, False),
+        (0.55, 0.74, 0.30, -20.0, False),
+        (0.82, 0.80, 0.18, 26.0, False),
     ]
     for idx, (xr, yr, hr, ang, flip) in zip(order, layout):
         win._add_instance(idx, w * xr, h * yr)
@@ -92,8 +91,25 @@ def _compose_demo_scene(win: MainWindow) -> None:
         inst.angle = ang
         inst.flip = flip
         inst.invalidate_cache()
+
+    # Main-window batch defaults (always-visible right panel).
+    win.doc.scene_recipe = "camera-mild"
+    win.doc.object_appearance_recipe = "mild"
+    win.doc.blend_mode = "gaussian"
+    win.doc.empty_scene_prob = 0.10
+    win.gen_defaults.reflect(win.doc)
+
+    # Selected instance shows Object Appearance Preview controls.
     if win.doc.instances:
-        win.doc.select(win.doc.instances[0].uid)
+        person = win.doc.instances[0]
+        person.appearance_enabled = True
+        person.appearance_recipe = "mild"
+        person.appearance_seed = 42
+        person.appearance_brightness = 0.08
+        person.appearance_saturation = 1.12
+        person.appearance_blur = 0.4
+        person.invalidate_cache()
+        win.doc.select(person.uid)
     win.doc._emit()
 
 
@@ -115,8 +131,9 @@ def main() -> int:
         class_map_text="person=0,truck=1,motorcycle=2",
         theme_mode="dark",
     )
-    win.resize(1440, 900)
-    win.setMinimumSize(1200, 760)
+    # Wider right panel so batch defaults + appearance preview are readable.
+    win.resize(1560, 960)
+    win.setMinimumSize(1280, 820)
     win.setWindowTitle("ScenePaste")
     win.show()
     win.raise_()
@@ -127,14 +144,18 @@ def main() -> int:
             print("WARN: cutouts/background not ready; capturing anyway", file=sys.stderr)
         _compose_demo_scene(win)
         _drain(app, 0.6)
-        # Fit canvas to background after instances appear.
         if win.canvas._bg_item is not None:
             win.canvas.fitInView(win.canvas._bg_item, Qt.KeepAspectRatio)
-        _drain(app, 0.4)
+        # Bias splitter toward the right panel for documentation shots.
+        if hasattr(win, "centralWidget"):
+            splitters = win.findChildren(__import__("PySide6.QtWidgets", fromlist=["QSplitter"]).QSplitter)
+            for sp in splitters:
+                if sp.count() >= 3:
+                    sp.setSizes([200, 820, 420])
+        _drain(app, 0.5)
 
         _save(win, OUT / "ui_overview.png")
 
-        # Light theme variant for docs variety.
         win.setStyleSheet(qss_for("light"))
         _drain(app, 0.3)
         _save(win, OUT / "ui_overview_light.png")
@@ -143,7 +164,7 @@ def main() -> int:
 
         dlg = ProjectSettingsDialog(win.doc, parent=win)
         dlg.setWindowTitle("ScenePaste — 项目设置")
-        dlg.resize(420, 360)
+        dlg.resize(480, 520)
         dlg.show()
         _drain(app, 0.3)
         _save(dlg, OUT / "ui_settings.png")

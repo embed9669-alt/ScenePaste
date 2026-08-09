@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from compose_app.models import Cutout, Instance
-from compose_app.rendering import render_instance, bbox_of_rendered
+from compose_app.rendering import bbox_of_rendered
 from .state import Document
 
 
@@ -64,7 +64,9 @@ class InstanceItem(QGraphicsPixmapItem):
         if bg_h <= 0:
             bg_h = self.cutout.rgba.height
         target_h = max(4, int(round(self.inst.h_ratio * bg_h)))
-        rendered = render_instance(self.cutout.rgba, target_h, self.inst.flip, self.inst.angle)
+        rendered = self.inst.get_rendered(
+            self.cutout.rgba, target_h, class_label=self.cutout.label,
+        )
         self._rendered = rendered
         self._bbox_offset = bbox_of_rendered(rendered)
         pm = _pil_rgba_to_qpixmap(rendered)

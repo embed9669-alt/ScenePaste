@@ -6,18 +6,18 @@
 
 ScenePaste is a local-first desktop studio and CLI for building **controllable synthetic datasets from real object cutouts and real backgrounds**. It turns Copy-Paste from a one-line random augmentation into a complete engineering workflow:
 
-**assets → scene composition → reusable templates → batch synthesis → automatic annotations → visual inspection → dataset QA → model hard-mining → curation / sharding**
+**assets → scene composition → object appearance → reusable templates → batch synthesis → automatic annotations → visual inspection → dataset QA → model hard-mining → curation / sharding**
 
-> **Status: v1.1.0 Stable.** ScenePaste adds auditable per-object appearance recipes on top of the v1.0 production baseline, while preserving deterministic/resumable generation and annotation geometry. Synthetic data should still be visually reviewed and evaluated against a real held-out validation/test set.
+> **Status: v1.1.0 Stable.** Auditable per-object appearance recipes, main-window batch defaults, and live editor appearance preview — on top of the v1.0 production baseline. Synthetic data should still be visually reviewed and evaluated against a real held-out validation/test set.
 
-![ScenePaste desktop editor](docs/images/ui_overview.png)
+![ScenePaste desktop editor — batch defaults + object appearance preview on the right](docs/images/ui_overview.png)
 
 <details>
 <summary>Light theme &amp; project settings</summary>
 
-![Light theme](docs/images/ui_overview_light.png)
+![Light theme with the same right-panel controls](docs/images/ui_overview_light.png)
 
-![Project settings](docs/images/ui_settings.png)
+![Project settings including scene / object recipes, blend and negative-scene ratio](docs/images/ui_settings.png)
 
 </details>
 
@@ -67,7 +67,11 @@ ScenePaste does **not** claim a new Copy-Paste research algorithm. Its goal is t
 ## Highlights
 
 - **PySide6 scene editor** — drag, resize, rotate, flip and duplicate real cutouts, with z-order-aware occlusion.
-- **Parameterized Scene Template v2** — human-designed nominal layouts plus position/scale/angle/probability ranges, same-class asset variation and relation constraints (`left_of`, `right_of`, `above`, `below`, distance bounds).
+- **Main-window batch defaults** — scene recipe, object appearance, blend mode and empty-scene ratio stay on the right panel; shared by 批量套用, 大规模生成 and project save/load.
+- **Live object appearance preview** — select an instance, enable a recipe, tweak brightness / contrast / saturation / blur, or resample; RGB-only, labels stay aligned.
+- **Object Appearance Recipes** — class-aware per-cutout photometric and resolution degrade (alpha-aware edges), with per-instance metadata and QA coverage.
+- **Scene Augmentation Recipes + blend modes** — camera/surveillance/low-light full-image pipelines with alpha / hard / gaussian blending.
+- **Parameterized Scene Template v2** — human-designed layouts plus ranges, same-class variation and relation constraints (`left_of`, `right_of`, `above`, `below`, distance bounds).
 - **Dataset Explorer** — browse generated images with Detect / Seg / OBB / COCO / Semantic overlays.
 - **Asset search and responsive thumbnail browsing** for cutout libraries.
 - **LabelMe / X-AnyLabeling input** with polygon extraction.
@@ -76,11 +80,9 @@ ScenePaste does **not** claim a new Copy-Paste research algorithm. Its goal is t
 - **Mask-first annotation pipeline** — final visible masks respect z-order occlusion.
 - **YOLO Detect / Segment / OBB**, **Semantic Segmentation**, and **COCO Instances**.
 - **Balanced sampling** for classes and backgrounds, plus intentional pure-background negative scenes.
-- **Distribution-driven generation** — learn class/count/position/scale plus crowding/overlap statistics from LabelMe, YOLO Detect/Seg/OBB or COCO, or mix several domain profiles with explicit weights.
-- **Resumable multiprocessing** — deterministic per-index plans, bounded process queues and SQLite run state.
+- **Distribution-driven generation** — learn class/count/position/scale plus crowding/overlap from LabelMe, YOLO Detect/Seg/OBB or COCO; mix domains with weights.
+- **Resumable multiprocessing** — deterministic per-index plans, bounded queues and SQLite run state.
 - **Deterministic runs**, run IDs, crash-safe per-sample metadata, background LRU cache and sampled previews.
-- **Object Appearance Recipes** — class-aware per-cutout brightness/contrast, hue/saturation, gamma, temperature, blur, noise, JPEG, motion blur, sharpness and low-resolution degradation, with per-instance metadata.
-- **Scene Augmentation Recipes + blend modes** — reproducible camera/surveillance/low-light full-image pipelines with alpha, hard-edge or Gaussian-edge blending.
 - **QA + curation Dashboard** — integrity, exact/pHash/embedding leakage, visual uniqueness, class/scale/position/crowding distributions, actual rendered visibility diagnostics, reuse and target-vs-generated drift.
 - **Detect / Seg / OBB hard-example mining** — consume YOLO-style prediction TXT with confidence, rank FN/FP/low-confidence/geometry failures and emit a reusable hard distribution profile.
 - **Real vs synthetic comparison** — compare class/count/geometry distributions plus lightweight visual-domain similarity.

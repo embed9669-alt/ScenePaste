@@ -32,9 +32,9 @@ Phase 2 landed:
 - alpha-aware edge-safe blur / motion blur / resolution degradation;
 - strict recipe validation and worker-level recipe preloading.
 
-Still planned for a later UI-focused release:
+Editor preview:
 
-- interactive per-instance appearance preview in the scene editor.
+- interactive per-instance appearance preview in the scene editor (enable + recipe + sliders + resample).
 
 Phase 3 (optional, later):
 

@@ -1,11 +1,12 @@
-"""纯渲染函数：缩放/翻转/旋转/阴影/颜色匹配/bbox。
+"""纯渲染函数：缩放/翻转/旋转/阴影/颜色匹配/bbox/外观预览。
 
 全部为无状态函数，输入 PIL/numpy，输出 PIL/numpy，可独立单元测试。
 """
 
 from __future__ import annotations
 
-from typing import Tuple
+import random
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
@@ -57,6 +58,88 @@ def render_instance(rgba: Image.Image, target_h: int, flip: bool, angle: float) 
     if abs(angle) > 0.05:
         img = img.rotate(-angle, resample=Image.BILINEAR, expand=True)
     return img
+
+
+def _slider_overrides(inst: Any) -> Dict[str, dict]:
+    """Build forced object-appearance effects from editor sliders."""
+    effects: Dict[str, dict] = {}
+    brightness = float(getattr(inst, "appearance_brightness", 0.0) or 0.0)
+    contrast = float(getattr(inst, "appearance_contrast", 1.0) or 1.0)
+    saturation = float(getattr(inst, "appearance_saturation", 1.0) or 1.0)
+    blur = float(getattr(inst, "appearance_blur", 0.0) or 0.0)
+    if abs(brightness) > 1e-6 or abs(contrast - 1.0) > 1e-6:
+        effects["brightness_contrast"] = {
+            "p": 1.0,
+            "brightness": [brightness, brightness],
+            "contrast": [contrast, contrast],
+        }
+    if abs(saturation - 1.0) > 1e-6:
+        effects["saturation"] = {"p": 1.0, "range": [saturation, saturation]}
+    if blur > 1e-6:
+        effects["gaussian_blur"] = {"p": 1.0, "sigma": [blur, blur]}
+    return effects
+
+
+def build_instance_appearance_recipe(inst: Any) -> Optional[dict]:
+    """Merge built-in/custom recipe with slider overrides for one Instance."""
+    if not bool(getattr(inst, "appearance_enabled", False)):
+        return None
+    from scenepaste.core.object_appearance import (
+        SCHEMA,
+        VERSION,
+        load_object_appearance_recipe,
+        validate_object_appearance_recipe,
+    )
+
+    name = str(getattr(inst, "appearance_recipe", "") or "").strip()
+    base: Optional[Mapping[str, Any]] = None
+    if name and name.lower() not in {"", "off"}:
+        try:
+            base = load_object_appearance_recipe(name)
+        except (OSError, ValueError, FileNotFoundError):
+            base = None
+    overrides = _slider_overrides(inst)
+    if base is None and not overrides:
+        return None
+    effects = dict((base or {}).get("effects") or {})
+    effects.update(overrides)
+    by_class = dict((base or {}).get("by_class") or {})
+    return validate_object_appearance_recipe({
+        "schema": SCHEMA,
+        "version": VERSION,
+        "name": str((base or {}).get("name") or name or "editor-preview"),
+        "effects": effects,
+        "by_class": by_class,
+    })
+
+
+def apply_instance_appearance(
+    rgba: Image.Image,
+    inst: Any,
+    *,
+    class_label: Optional[str] = None,
+) -> Image.Image:
+    """Apply RGB-only object appearance; alpha / size stay identical."""
+    recipe = build_instance_appearance_recipe(inst)
+    if recipe is None:
+        return rgba
+    from scenepaste.core.object_appearance import apply_object_appearance
+
+    arr = np.asarray(rgba.convert("RGBA"))
+    rgb = arr[..., :3]
+    alpha = arr[..., 3].astype(np.float32) / 255.0
+    bgr = rgb[..., ::-1].copy()
+    seed = int(getattr(inst, "appearance_seed", 0) or 0)
+    out_bgr, _meta = apply_object_appearance(
+        bgr,
+        alpha,
+        recipe,
+        random.Random(seed),
+        class_label=class_label,
+        blur_prob_fallback=0.0,
+    )
+    out = np.dstack([out_bgr[..., ::-1], arr[..., 3]])
+    return Image.fromarray(out.astype(np.uint8), "RGBA")
 
 
 def bbox_of_rendered(rendered: Image.Image) -> Tuple[int, int, int, int]:

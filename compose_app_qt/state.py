@@ -34,14 +34,29 @@ class Document:
     selected_uid: Optional[int] = None
     output_dir: Optional[Path] = None
     class_map_text: str = "person=0,vehicle=1"
-    # Project settings (mutable via ProjectSettingsDialog).
-    output_format: str = "detect"      # detect | seg | both | coco | semantic | obb
+    # Project settings (mutable via ProjectSettingsDialog / GenerationDefaultsPanel).
+    output_format: str = "detect"      # detect | seg | both | coco | semantic | obb | all
     do_shadow: bool = True             # apply foot shadow on composite
     do_color_match: bool = True        # color-match foreground to background
     auto_save: bool = False            # auto-save when switching background
     keep_position: bool = True         # keep relative position across backgrounds
+    # Batch / large-generation defaults (also shown on the main window).
+    scene_recipe: str = ""             # post-render image recipe name/path
+    object_appearance_recipe: str = "" # default cutout appearance for batch/large gen
+    blend_mode: str = "alpha"          # alpha | hard | gaussian
+    empty_scene_prob: float = 0.0
     _next_uid_counter: int = 1
     _listeners: List[Callable[[], None]] = field(default_factory=list)
+
+    def generation_defaults(self) -> dict:
+        """Defaults consumed by Large Generate / project save."""
+        return {
+            "output_format": self.output_format,
+            "augmentation_recipe": self.scene_recipe,
+            "object_appearance_recipe": self.object_appearance_recipe,
+            "blend_mode": self.blend_mode,
+            "empty_scene_prob": float(self.empty_scene_prob),
+        }
 
     # ------------------------------------------------------------------ uid
     def next_uid(self) -> int:

@@ -25,7 +25,7 @@ def save_template(doc, path: Path, parameters: Optional[Dict[str, object]] = Non
         if not (0 <= inst.cutout_index < len(doc.cutouts)):
             continue
         cut = doc.cutouts[inst.cutout_index]
-        rows.append({
+        row = {
             "source": cut.source,
             "source_name": portable_source_name(cut.source),
             "label": cut.label,
@@ -35,7 +35,18 @@ def save_template(doc, path: Path, parameters: Optional[Dict[str, object]] = Non
             "h_ratio": float(inst.h_ratio),
             "flip": bool(inst.flip),
             "angle": float(inst.angle),
-        })
+        }
+        if getattr(inst, "appearance_enabled", False):
+            row["appearance"] = {
+                "enabled": True,
+                "recipe": str(inst.appearance_recipe or "mild"),
+                "seed": int(inst.appearance_seed),
+                "brightness": float(inst.appearance_brightness),
+                "contrast": float(inst.appearance_contrast),
+                "saturation": float(inst.appearance_saturation),
+                "blur": float(inst.appearance_blur),
+            }
+        rows.append(row)
     payload = build_payload_from_layout(bw, bh, rows)
     if parameters:
         payload = parameterize_payload(payload, **parameters)
@@ -79,12 +90,20 @@ def load_template(doc, path: Path) -> Tuple[List[Instance], List[str]]:
             idx = by_label[label][0]
         if idx is None:
             missing.append(f"{label} ({source})"); continue
+        appearance = row.get("appearance") if isinstance(row.get("appearance"), dict) else {}
         restored.append(Instance(
             cutout_index=int(idx), cx=float(row.get("cx_ratio", .5))*bw,
             cy=float(row.get("cy_ratio", .5))*bh,
             h_ratio=max(.01, min(1.5, float(row.get("h_ratio", .3)))),
             flip=bool(row.get("flip", False)), angle=float(row.get("angle", 0.0)),
             uid=doc.next_uid(),
+            appearance_enabled=bool(appearance.get("enabled", False)),
+            appearance_recipe=str(appearance.get("recipe", "mild") or "mild"),
+            appearance_seed=int(appearance.get("seed", 0) or 0),
+            appearance_brightness=float(appearance.get("brightness", 0.0) or 0.0),
+            appearance_contrast=float(appearance.get("contrast", 1.0) or 1.0),
+            appearance_saturation=float(appearance.get("saturation", 1.0) or 1.0),
+            appearance_blur=float(appearance.get("blur", 0.0) or 0.0),
         ))
     if not restored:
         raise RuntimeError("模板中的目标无法与当前素材库匹配")
