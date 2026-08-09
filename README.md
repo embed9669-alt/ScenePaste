@@ -12,6 +12,28 @@ ScenePaste is a local-first desktop studio and CLI for building **controllable s
 
 ![ScenePaste desktop editor — batch defaults + object appearance preview on the right](docs/images/ui_overview.png)
 
+### Workflow tour (GIFs)
+
+Five short clips from compose → data loop (re-record with `python scripts/capture_workflow_gifs.py`):
+
+| Step | What you see |
+|---|---|
+| 1. Compose | Place cutouts, scale / rotate |
+| 2. Appearance | Live per-instance recipe + sliders |
+| 3. Batch defaults | Scene / object recipe, blend, empty-scene ratio |
+| 4. Explorer | Browse renders with label overlays |
+| 5. Data loop | Hard-mine / QA / compare / curation / shards |
+
+![1 · Compose](docs/images/gif_01_compose.gif)
+
+![2 · Object appearance](docs/images/gif_02_appearance.gif)
+
+![3 · Batch defaults](docs/images/gif_03_batch_defaults.gif)
+
+![4 · Dataset Explorer](docs/images/gif_04_explorer.gif)
+
+![5 · Data Loop Center](docs/images/gif_05_data_loop.gif)
+
 <details>
 <summary>Light theme &amp; project settings</summary>
 

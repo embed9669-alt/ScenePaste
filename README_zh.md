@@ -12,6 +12,28 @@ ScenePaste 是一个本地运行的桌面软件 + CLI，用真实目标素材和
 
 ![ScenePaste 桌面编辑器：右侧可见批量生成默认 + 目标外观预览](docs/images/ui_overview.png)
 
+### 整条工作流（动图）
+
+从摆场景到数据闭环，五段短 GIF（可本地重录：`python scripts/capture_workflow_gifs.py`）：
+
+| 步骤 | 做什么 |
+|---|---|
+| 1. 摆场景 | 放置 cutout，缩放 / 旋转构图 |
+| 2. 目标外观 | 选中实例启用 Recipe，调滑条或换种子 |
+| 3. 批量默认 | 右侧设场景 Recipe / 目标外观 / Blend / 负样本 |
+| 4. Explorer | 浏览生成图与 Detect/Seg/OBB 等叠加 |
+| 5. 数据闭环 | 难例 / QA / 对比 / 策展 / 分片入口 |
+
+![1 · 摆场景](docs/images/gif_01_compose.gif)
+
+![2 · 目标外观预览](docs/images/gif_02_appearance.gif)
+
+![3 · 批量生成默认](docs/images/gif_03_batch_defaults.gif)
+
+![4 · Dataset Explorer](docs/images/gif_04_explorer.gif)
+
+![5 · 数据闭环中心](docs/images/gif_05_data_loop.gif)
+
 <details>
 <summary>浅色主题与项目设置</summary>
 
