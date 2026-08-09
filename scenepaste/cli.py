@@ -9,7 +9,7 @@ Subcommands:
     explore   – Browse a dataset with annotation overlays
     profile   – Learn, inspect, or mix real-data distribution profiles
     qa        – Generate JSON + HTML dataset QA reports
-    recipe    – Inspect or export augmentation recipes
+    recipe    – Inspect or export scene / object appearance recipes
     curate    – Hard mining, leakage checks, and diversity selection
     compare   – Compare real and synthetic datasets
     shard     – Build WebDataset-compatible tar shards
@@ -37,7 +37,7 @@ _COMMANDS = {
     "explore": "Browse a dataset with annotation overlays",
     "profile": "Learn/show a real-data distribution profile",
     "qa": "Generate a full QA JSON + HTML dashboard",
-    "recipe": "List/show/export image augmentation recipes",
+    "recipe": "List/show/export scene or object appearance recipes",
     "curate": "Hard mining, leakage checks, and diversity selection",
     "compare": "Compare real and synthetic datasets",
     "shard": "Build WebDataset-compatible tar shards",
@@ -124,6 +124,8 @@ def build_generate_parser() -> argparse.ArgumentParser:
                         help="0~1：生成纯背景负样本的概率；负样本写空检测/分割标签")
     parser.add_argument("--augmentation-recipe", default=None,
                         help="图像级增强 Recipe：clean/camera-mild/surveillance/low-light 或自定义 JSON")
+    parser.add_argument("--object-appearance-recipe", default=None,
+                        help="目标级外观 Recipe：off/legacy/mild/surveillance-object 或自定义 JSON；默认保持 v1.0 轻量 HSV")
     parser.add_argument("--blend-mode", choices=("alpha", "hard", "gaussian"), default="alpha",
                         help="目标边缘混合方式；gaussian 可减轻硬边界")
     parser.add_argument("--blend-sigma", type=float, default=1.5,
@@ -179,12 +181,23 @@ def config_from_args(args: argparse.Namespace):
             "profile_strength": "--profile-strength",
             "empty_scene_prob": "--empty-scene-prob",
             "augmentation_recipe": "--augmentation-recipe",
+            "object_appearance_recipe": "--object-appearance-recipe",
             "blend_mode": "--blend-mode",
             "blend_sigma": "--blend-sigma",
         }
         for key, option in option_by_key.items():
             if key in project.defaults and option not in provided:
-                setattr(args, key, project.defaults[key])
+                value = project.defaults[key]
+                # Custom recipe paths in a portable project are interpreted
+                # relative to the manifest, while built-in recipe names remain
+                # untouched. This lets the same project run from any CWD.
+                if key in {"augmentation_recipe", "object_appearance_recipe"} and isinstance(value, str):
+                    candidate = Path(value).expanduser()
+                    if not candidate.is_absolute():
+                        manifest_candidate = (project.base_dir / candidate).resolve()
+                        if manifest_candidate.is_file():
+                            value = str(manifest_candidate)
+                setattr(args, key, value)
 
     missing = [name for name in ["objects", "backgrounds", "output"] if getattr(args, name) is None]
     if missing:
@@ -220,6 +233,7 @@ def config_from_args(args: argparse.Namespace):
         scene_template=args.scene_template,
         empty_scene_probability=args.empty_scene_prob,
         augmentation_recipe=args.augmentation_recipe,
+        object_appearance_recipe=getattr(args, "object_appearance_recipe", None),
         blend_mode=args.blend_mode,
         blend_sigma=args.blend_sigma,
     )
@@ -330,7 +344,16 @@ def profile_main(argv: Optional[Sequence[str]] = None) -> int:
 
 
 def recipe_main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = argparse.ArgumentParser(prog="scenepaste recipe", description="Inspect ScenePaste image-only augmentation recipes")
+    parser = argparse.ArgumentParser(
+        prog="scenepaste recipe",
+        description="Inspect ScenePaste scene or object appearance recipes",
+    )
+    parser.add_argument(
+        "--kind",
+        choices=("scene", "object"),
+        default="scene",
+        help="scene = post-render image recipe; object = per-cutout appearance recipe",
+    )
     sub = parser.add_subparsers(dest="action", required=True)
     sub.add_parser("list", help="list built-in recipes")
     show = sub.add_parser("show", help="print one built-in or JSON recipe")
@@ -339,6 +362,24 @@ def recipe_main(argv: Optional[Sequence[str]] = None) -> int:
     export.add_argument("recipe")
     export.add_argument("-o", "--output", type=Path, required=True)
     args = parser.parse_args(argv)
+    if args.kind == "object":
+        from .core.object_appearance import (
+            BUILTIN_OBJECT_RECIPES,
+            load_object_appearance_recipe,
+            save_object_appearance_recipe,
+        )
+        if args.action == "list":
+            for name in sorted(BUILTIN_OBJECT_RECIPES):
+                print(name)
+            return 0
+        recipe = load_object_appearance_recipe(args.recipe)
+        if args.action == "show":
+            print(json.dumps(recipe, ensure_ascii=False, indent=2))
+            return 0
+        save_object_appearance_recipe(recipe or BUILTIN_OBJECT_RECIPES["off"], args.output)
+        print(f"Object appearance recipe saved: {args.output}")
+        return 0
+
     from .core.recipes import BUILTIN_RECIPES, load_augmentation_recipe, save_augmentation_recipe
     if args.action == "list":
         for name in sorted(BUILTIN_RECIPES):
@@ -429,6 +470,7 @@ def project_main(argv: Optional[Sequence[str]] = None) -> int:
     setp.add_argument("--profile-strength", type=float)
     setp.add_argument("--empty-scene-prob", type=float)
     setp.add_argument("--augmentation-recipe")
+    setp.add_argument("--object-appearance-recipe")
     setp.add_argument("--blend-mode", choices=("alpha", "hard", "gaussian"))
     args = parser.parse_args(argv)
     if args.action == "init":
@@ -458,6 +500,7 @@ def project_main(argv: Optional[Sequence[str]] = None) -> int:
             "profile_strength": args.profile_strength,
             "empty_scene_prob": args.empty_scene_prob,
             "augmentation_recipe": args.augmentation_recipe,
+            "object_appearance_recipe": args.object_appearance_recipe,
             "blend_mode": args.blend_mode,
         }
         for key, value in default_args.items():

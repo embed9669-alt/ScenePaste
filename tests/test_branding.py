@@ -6,9 +6,11 @@ from scenepaste.cli import main as cli_main
 
 
 def test_public_api_version_and_exports():
-    assert scenepaste.__version__ == "1.0.0"
+    assert scenepaste.__version__ == "1.1.0"
     assert GenerationConfig is not None
     assert callable(generate_dataset)
+    assert callable(scenepaste.validate_object_appearance_recipe)
+    assert callable(scenepaste.save_object_appearance_recipe)
 
 
 def test_unified_cli_help_and_version(capsys):
@@ -34,10 +36,10 @@ def test_v1_metadata_and_docs_are_release_consistent():
     pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
     readme = (root / "README.md").read_text(encoding="utf-8")
     readme_zh = (root / "README_zh.md").read_text(encoding="utf-8")
-    assert 'version = "1.0.0"' in pyproject
+    assert 'version = "1.1.0"' in pyproject
     assert 'requires-python = ">=3.10"' in pyproject
     assert "Development Status :: 5 - Production/Stable" in pyproject
     assert "paginated thumbnails" not in readme.lower()
     assert "分页缩略图" not in readme_zh
-    assert "v1.0.0 Stable" in readme
-    assert "v1.0.0 Stable" in readme_zh
+    assert "v1.1.0 Stable" in readme
+    assert "v1.1.0 Stable" in readme_zh

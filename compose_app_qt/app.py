@@ -312,10 +312,26 @@ class MainWindow(QMainWindow):
 
     def open_large_generation(self) -> None:
         from .large_generate import LargeGenerationDialog
+        defaults = {}
+        distribution_profile = None
+        scene_template = getattr(self, "_active_scene_template", None)
+        project_path = getattr(self, "_project_manifest", None)
+        if project_path and Path(project_path).is_file():
+            try:
+                from scenepaste.project import ScenePasteProject
+                project = ScenePasteProject.load(Path(project_path))
+                defaults = dict(project.defaults or {})
+                distribution_profile = project.distribution_profile
+                scene_template = project.scene_template or scene_template
+            except Exception:
+                # The generation dialog remains usable even if an optional
+                # project manifest was moved or edited outside ScenePaste.
+                pass
         self._large_generation = LargeGenerationDialog(
             objects_dir=self._objects_dir, backgrounds_dir=self._backgrounds_dir,
             output_dir=self.doc.output_dir, class_map_text=self.doc.class_map_text,
-            output_format=self.doc.output_format, parent=self)
+            output_format=self.doc.output_format, project_defaults=defaults,
+            distribution_profile=distribution_profile, scene_template=scene_template, parent=self)
         self._large_generation.show()
         self._large_generation.raise_()
 

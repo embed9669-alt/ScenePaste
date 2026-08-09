@@ -45,6 +45,7 @@ from .synthesis import paste_one
 from .templates import load_template_data, portable_source_name, sample_template
 from .validation import is_valid_yolo_box
 from .recipes import apply_scene_recipe, load_augmentation_recipe
+from .object_appearance import load_object_appearance_recipe
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,7 @@ class _WorkerContext:
     run_id: str
     fragment_root: Path
     augmentation_recipe: Optional[dict]
+    object_appearance_recipe: Optional[dict]
 
 
 _CTX: Optional[_WorkerContext] = None
@@ -111,6 +113,7 @@ def _init_worker(config: GenerationConfig, run_id: str, fragment_root: str) -> N
         run_id=run_id,
         fragment_root=Path(fragment_root),
         augmentation_recipe=load_augmentation_recipe(config.augmentation_recipe),
+        object_appearance_recipe=load_object_appearance_recipe(config.object_appearance_recipe),
     )
 
 
@@ -191,24 +194,31 @@ def _write_task(plan: SamplePlan) -> TaskResult:
             spec = planned.placement
             asset = _asset_for_plan(ctx, spec, rng)
             effective_zone = class_zone_masks.get(asset.label.casefold(), zone_mask)
-            result = paste_one(canvas, asset, boxes, effective_zone, cfg, rng, placement=spec)
+            result = paste_one(
+                canvas, asset, boxes, effective_zone, cfg, rng, placement=spec,
+                object_appearance_recipe=ctx.object_appearance_recipe,
+            )
             if result is None:
                 continue
-            box, flipped, transform = result
+            box, flipped, transform, appearance = result
             boxes.append(box)
-            annotations.append((asset, box, flipped, transform))
+            annotations.append((asset, box, flipped, transform, appearance))
         intentional_empty = len(plan.objects) == 0
         if not annotations and not intentional_empty:
             raise RuntimeError("未找到合适的粘贴位置")
 
         valid = []
-        for asset, box, flipped, transform in annotations:
+        for asset, box, flipped, transform, appearance in annotations:
             ok, clipped = is_valid_yolo_box(box, width, height, min_visible=cfg.min_visible_ratio)
             if ok:
-                valid.append((asset, clipped, flipped, transform))
+                valid.append((asset, clipped, flipped, transform, appearance))
         annotations = valid
         if not annotations and not intentional_empty:
             raise RuntimeError("所有目标越界/过小")
+
+        # Keep geometry annotations as the historical 4-tuple for writers.
+        appearance_by_idx = [row[4] for row in annotations]
+        annotations = [(a, b, f, t) for a, b, f, t, _app in annotations]
 
         # Image-only recipe runs after geometry so every label modality stays aligned.
         canvas, applied_effects = apply_scene_recipe(canvas, ctx.augmentation_recipe, rng)
@@ -277,6 +287,7 @@ def _write_task(plan: SamplePlan) -> TaskResult:
         log_rows = []
         for ann_idx, (asset, box, flipped, transform) in enumerate(annotations):
             angle = float(transform[4]) if len(transform) >= 5 else 0.0
+            object_effects = appearance_by_idx[ann_idx] if ann_idx < len(appearance_by_idx) else []
             log_rows.append({
                 "generated_stem": stem, "background": str(bg_path), "label": asset.label,
                 "class_id": int(asset.class_id), "source_json": str(asset.source_json),
@@ -284,6 +295,7 @@ def _write_task(plan: SamplePlan) -> TaskResult:
                 "angle": angle, "box_xyxy": ",".join(map(str, box)),
                 "used_paste_zone": 1 if (zone_mask is not None or asset.label.casefold() in class_zone_masks) else 0,
                 "scene_effects": json.dumps(applied_effects, ensure_ascii=False, separators=(",", ":")),
+                "object_effects": json.dumps(object_effects, ensure_ascii=False, separators=(",", ":")),
                 "visible_ratio": float(visibility_rows[ann_idx]) if ann_idx < len(visibility_rows) else None,
                 "run_id": ctx.run_id,
                 "task_index": int(plan.index),
@@ -292,7 +304,9 @@ def _write_task(plan: SamplePlan) -> TaskResult:
                      {"index": plan.index, "stem": stem, "objects": len(annotations),
                       "intentional_empty": bool(intentional_empty),
                       "visible_ratios": visibility_rows,
-                      "scene_effects": applied_effects, "rows": log_rows})
+                      "scene_effects": applied_effects,
+                      "object_effects": appearance_by_idx,
+                      "rows": log_rows})
         return TaskResult(plan.index, True, stem=stem, objects=len(annotations))
     except Exception as exc:
         return TaskResult(plan.index, False, error=str(exc))
@@ -324,6 +338,7 @@ def _finalize_generation_diagnostics(fragment_root: Path, path: Path, completed:
     bins = [0] * 10
     by_class: Dict[str, list] = {}
     effects: Dict[str, int] = {}
+    object_effects: Dict[str, int] = {}
     images = objects = negatives = 0
     for idx, done in enumerate(completed):
         if not done:
@@ -336,8 +351,18 @@ def _finalize_generation_diagnostics(fragment_root: Path, path: Path, completed:
         images += 1; objects += int(payload.get("objects", 0))
         if payload.get("intentional_empty"): negatives += 1
         for effect in payload.get("scene_effects", []) or []:
-            key = str(effect.get("name", effect) if isinstance(effect, dict) else effect)
+            if isinstance(effect, dict):
+                key = str(effect.get("effect") or effect.get("name") or effect)
+            else:
+                key = str(effect)
             effects[key] = effects.get(key, 0) + 1
+        for instance_effects in payload.get("object_effects", []) or []:
+            for effect in instance_effects or []:
+                if isinstance(effect, dict):
+                    key = str(effect.get("effect") or effect.get("name") or effect)
+                else:
+                    key = str(effect)
+                object_effects[key] = object_effects.get(key, 0) + 1
         rows = payload.get("rows", []) or []
         ratios = payload.get("visible_ratios", []) or []
         for i, ratio in enumerate(ratios):
@@ -356,6 +381,7 @@ def _finalize_generation_diagnostics(fragment_root: Path, path: Path, completed:
             for k, v in sorted(by_class.items()) if v
         },
         "scene_effect_counts": dict(sorted(effects.items())),
+        "object_effect_counts": dict(sorted(object_effects.items())),
     }
     path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     return result
@@ -420,6 +446,7 @@ def _config_payload(cfg: GenerationConfig) -> dict:
         "scene_template": str(Path(cfg.scene_template).resolve()) if cfg.scene_template else None,
         "empty_scene_probability": cfg.empty_scene_probability,
         "augmentation_recipe": cfg.augmentation_recipe,
+        "object_appearance_recipe": cfg.object_appearance_recipe,
         "blend_mode": cfg.blend_mode, "blend_sigma": cfg.blend_sigma,
     }
     # Include profile/template content so editing a file cannot silently resume a stale plan.
@@ -431,6 +458,12 @@ def _config_payload(cfg: GenerationConfig) -> dict:
         payload["augmentation_recipe_sha256"] = hashlib.sha256(Path(str(cfg.augmentation_recipe)).read_bytes()).hexdigest()
     else:
         payload["augmentation_recipe_sha256"] = None
+    if cfg.object_appearance_recipe and Path(str(cfg.object_appearance_recipe)).is_file():
+        payload["object_appearance_recipe_sha256"] = hashlib.sha256(
+            Path(str(cfg.object_appearance_recipe)).read_bytes()
+        ).hexdigest()
+    else:
+        payload["object_appearance_recipe_sha256"] = None
     return payload
 
 

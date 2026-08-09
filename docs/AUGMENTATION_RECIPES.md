@@ -2,6 +2,8 @@
 
 ScenePaste can apply deterministic **image-only** domain augmentation after the scene geometry has been finalized. This is intentionally different from spatial augmentation: boxes, polygons, OBBs and semantic masks do not move, so all exported annotations remain aligned.
 
+For **per-cutout** photometric / resolution diversity (before color-match), see [OBJECT_APPEARANCE.md](OBJECT_APPEARANCE.md).
+
 ## Built-in recipes
 
 ```bash

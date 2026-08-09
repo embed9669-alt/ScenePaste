@@ -8,7 +8,7 @@ ScenePaste 是一个本地运行的桌面软件 + CLI，用真实目标素材和
 
 **目标素材 → 场景编辑 → 场景模板 → 批量合成 → 自动标注 → 可视化检查 → 数据 QA → 模型难例回灌 → 数据策展 / 分片**
 
-> **当前版本：v1.0.0 Stable。** 正式版完成了打包、内置示例、确定性生成、标注格式和数据工具的一致性收口。合成数据进入训练前仍建议人工抽检，并使用独立真实验证集/测试集验证实际收益。
+> **当前版本：v1.1.0 Stable。** 在 v1.0 生产基线之上新增可审计的“目标级外观 Recipe”，同时保持确定性/可恢复生成与标注几何一致性。合成数据进入训练前仍建议人工抽检，并使用独立真实验证集/测试集验证实际收益。
 
 ![ScenePaste 桌面编辑器](docs/images/ui_overview.png)
 
@@ -80,7 +80,8 @@ ScenePaste **不是新的 Copy-Paste 论文算法**。它的价值是把 Copy-Pa
 - **真实数据分布学习生成**：可从 LabelMe、YOLO Detect/Seg/OBB、COCO 学习类别、目标数、位置、尺度以及目标拥挤/重叠分布，并按权重混合多个 Domain Profile。
 - **可恢复多进程生成**：每个 index 独立确定性计划、受限任务队列、SQLite Run 状态。
 - 固定随机种子、Run ID、崩溃安全 metadata、背景 LRU 缓存、Preview 抽样。
-- **增强 Recipe + 融合模式**：可复现的相机/监控/弱光外观增强，支持 alpha / hard / gaussian 融合。
+- **目标外观 Recipe**：按类别控制单个贴图的亮度/对比度、色相/饱和度、Gamma、色温、模糊、噪声、JPEG、运动模糊、锐度与低分辨率退化，并记录每实例 metadata。
+- **场景增强 Recipe + 融合模式**：对整张合成图做可复现的相机/监控/弱光外观增强，支持 alpha / hard / gaussian 融合。
 - **QA Dashboard + 数据策展**：HTML + JSON，检查完整性、完全重复、pHash 感知近重复、cv-lite embedding 多样性、跨 split 泄漏、类别/尺度/位置分布、复用度以及目标分布偏差。
 - **Detect / Seg / OBB Hard Example Mining**：读取 YOLO 风格预测 TXT，统计 FN / FP / 低置信 TP / 几何 IoU 不足，导出难例列表与可再次用于生成的 Hard Profile。
 - **真实 vs 合成对比 Dashboard**：比较类别、每图目标数、位置、宽高、面积、宽高比和轻量视觉域差异。
@@ -273,14 +274,16 @@ ScenePaste 可以在合成场景完成后执行不改变几何位置的图像级
 
 ```bash
 scenepaste recipe list
+scenepaste recipe --kind object list
 scenepaste generate ... \
   --output-format all \
+  --object-appearance-recipe mild \
   --augmentation-recipe surveillance \
   --blend-mode gaussian \
   --empty-scene-prob 0.10
 ```
 
-`--empty-scene-prob` 可按比例生成纯背景负样本，特别适合降低误检。详见 [增强 Recipe](docs/AUGMENTATION_RECIPES.md)。
+`--object-appearance-recipe` 在粘贴前对**单个贴图**做亮度/对比度、色相/饱和度、Gamma、色温、模糊/噪声、JPEG、运动模糊、锐度和低分辨率退化。邻域类处理采用 alpha-aware 方式，避免把 mask 外原背景卷回目标边缘；自定义 Recipe 会严格校验，实际应用的效果会进入 metadata 与 QA Dashboard。`--augmentation-recipe` 仍作用于整张合成图。`--empty-scene-prob` 可按比例生成纯背景负样本。详见 [目标外观 Recipe](docs/OBJECT_APPEARANCE.md) 与 [场景增强 Recipe](docs/AUGMENTATION_RECIPES.md)。
 
 ### 可恢复多进程大规模生成
 
@@ -506,7 +509,7 @@ ScenePaste/
 pytest -q
 ```
 
-正式 v1.0.0 使用 `pytest` 验证核心生成、Project Manifest、Detect/Seg/OBB Hard Mining、重叠分布学习、visible-ratio 诊断及既有闭环功能；Qt 相关模块由安装 PySide6 的 Windows/Linux/macOS CI 覆盖。CI 还会从构建出的 wheel 做一次源码树之外的端到端安装冒烟。
+正式 v1.1.0 使用 `pytest` 验证核心生成、Project Manifest、Detect/Seg/OBB Hard Mining、重叠分布学习、visible-ratio 诊断及既有闭环功能；Qt 相关模块由安装 PySide6 的 Windows/Linux/macOS CI 覆盖。CI 还会从构建出的 wheel 做一次源码树之外的端到端安装冒烟。
 
 构建干净 Release：
 

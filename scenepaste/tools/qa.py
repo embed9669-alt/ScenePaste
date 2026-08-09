@@ -250,6 +250,26 @@ def render_qa_html(report: dict) -> str:
             f"<tr><td>class {k}</td><td>{v}</td><td colspan=5>—</td></tr>"
             for k, v in dist.items()
         ]
+    scene_effect_counts = diagnostics.get("scene_effect_counts", {}) if isinstance(diagnostics, dict) else {}
+    object_effect_counts = diagnostics.get("object_effect_counts", {}) if isinstance(diagnostics, dict) else {}
+    generated_images = max(1, int(diagnostics.get("images", 0) or 0)) if isinstance(diagnostics, dict) else 1
+    generated_objects = max(1, int(diagnostics.get("objects", 0) or 0)) if isinstance(diagnostics, dict) else 1
+
+    def effect_rows(counts, denominator, unit):
+        if not counts:
+            return '<tr><td colspan="4" class="muted">No recorded effects.</td></tr>'
+        rows = []
+        for name, count in sorted(counts.items(), key=lambda kv: (-int(kv[1]), str(kv[0]))):
+            pct = 100.0 * int(count) / max(1, denominator)
+            rows.append(
+                f"<tr><td>{html.escape(str(name))}</td><td>{int(count)}</td>"
+                f"<td>{pct:.1f}%</td><td>{html.escape(unit)}</td></tr>"
+            )
+        return ''.join(rows)
+
+    scene_effect_rows = effect_rows(scene_effect_counts, generated_images, "images")
+    object_effect_rows = effect_rows(object_effect_counts, generated_objects, "objects")
+
     comparison = report.get("target_comparison")
     comp_html = '<span class="muted">No target distribution profile</span>'
     if isinstance(comparison, dict) and "error" not in comparison:
@@ -285,6 +305,11 @@ code{{color:#9dd1ff}}
 <h2>Target vs generated distribution</h2><div class="card">{comp_html}</div>
 <h2>Class / scale / position distributions</h2>
 <table><thead><tr><th>Class</th><th>Objects</th><th>Height</th><th>Center X</th><th>Bottom Y</th><th>Overlap IoU</th><th>Visible shape</th></tr></thead><tbody>{''.join(class_rows)}</tbody></table>
+<h2>Appearance coverage</h2>
+<div class="grid">
+<div class="card"><h3>Object-level effects</h3><table><thead><tr><th>Effect</th><th>Applied</th><th>Coverage</th><th>Base</th></tr></thead><tbody>{object_effect_rows}</tbody></table></div>
+<div class="card"><h3>Scene-level effects</h3><table><thead><tr><th>Effect</th><th>Applied</th><th>Coverage</th><th>Base</th></tr></thead><tbody>{scene_effect_rows}</tbody></table></div>
+</div>
 <h2>Generation diagnostics</h2><div class="card"><pre>{html.escape(json.dumps(diagnostics, ensure_ascii=False, indent=2))}</pre></div>
 <h2>Data curation</h2><div class="card"><pre>{html.escape(json.dumps(curation, ensure_ascii=False, indent=2))}</pre></div>
 <h2>Integrity</h2><div class="card"><pre>{html.escape(json.dumps(integrity, ensure_ascii=False, indent=2))}</pre></div>

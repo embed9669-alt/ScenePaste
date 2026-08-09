@@ -209,7 +209,7 @@ def generate_dataset(
             result = paste_one(canvas, asset, boxes, zone_mask, config, rng)
             if result is None:
                 continue
-            box, flipped, transform = result
+            box, flipped, transform, _appearance = result
             boxes.append(box)
             annotations.append((asset, box, flipped, transform))
 

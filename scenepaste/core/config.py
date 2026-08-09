@@ -52,6 +52,7 @@ class GenerationConfig:
     scene_template: Optional[Path] = None
     empty_scene_probability: float = 0.0  # background-only negatives
     augmentation_recipe: Optional[str] = None  # built-in name or JSON path
+    object_appearance_recipe: Optional[str] = None  # off/legacy/mild/... or JSON
     blend_mode: str = "alpha"          # alpha | hard | gaussian
     blend_sigma: float = 1.5
 
@@ -127,6 +128,9 @@ def validate_config(config: GenerationConfig) -> None:
     if config.augmentation_recipe:
         from .recipes import load_augmentation_recipe
         load_augmentation_recipe(config.augmentation_recipe)
+    if config.object_appearance_recipe:
+        from .object_appearance import load_object_appearance_recipe
+        load_object_appearance_recipe(config.object_appearance_recipe)
     if config.distribution_profile is not None and not Path(config.distribution_profile).is_file():
         raise ValueError(f"distribution profile 不存在：{config.distribution_profile}")
     if config.scene_template is not None and not Path(config.scene_template).is_file():

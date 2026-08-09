@@ -1,6 +1,6 @@
 # ScenePaste Roadmap
 
-## v1.0.0 — Stable (current)
+## v1.0.0 — Stable baseline
 
 Release-complete baseline:
 
@@ -14,7 +14,34 @@ Release-complete baseline:
 - Windows / Linux / macOS Qt test matrix plus non-editable installed-wheel smoke workflow;
 - documented 1/4/8-worker benchmark procedure and memory guidance.
 
-## v1.1 candidates
+## v1.1.0 — Object Appearance (current stable)
+
+Phase 1 (landed in tree):
+
+- Object Appearance Recipes (`off` / `legacy` / `mild` / `surveillance-object`);
+- per-cutout brightness/contrast, sat/hue, gamma, color temperature, blur, noise, JPEG, motion blur, **resolution degrade**;
+- class-aware `by_class` overrides;
+- per-instance `object_effects` metadata + diagnostics counts;
+- CLI `--object-appearance-recipe` and `scenepaste recipe --kind object …`;
+- GUI large-generate recipe picker (blank keeps v1.0 compatibility; `mild` is recommended).
+
+Phase 2 landed:
+
+- project defaults for object appearance recipes, including portable relative JSON paths;
+- QA dashboard coverage tables for object-level and scene-level effects;
+- alpha-aware edge-safe blur / motion blur / resolution degradation;
+- strict recipe validation and worker-level recipe preloading.
+
+Still planned for a later UI-focused release:
+
+- interactive per-instance appearance preview in the scene editor.
+
+Phase 3 (optional, later):
+
+- region-aware recolor (vehicle paint / clothing masks);
+- generative editing as `scenepaste[generative]` — not core.
+
+## v1.2 candidates
 
 - true virtualized/paginated asset browser for very large libraries;
 - explicit layer panel with move-up / move-down / top / bottom controls;

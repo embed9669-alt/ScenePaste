@@ -181,6 +181,27 @@ class ScenePasteProject:
         if "blend_mode" in defaults and defaults["blend_mode"] not in {"alpha", "hard", "gaussian"}:
             errors.append("defaults.blend_mode is invalid")
 
+        # Validate built-in/custom recipe defaults from the project base dir so
+        # portable manifests catch typos before a long generation run starts.
+        for key, loader_name in (("augmentation_recipe", "scene"), ("object_appearance_recipe", "object")):
+            value = defaults.get(key)
+            if not value:
+                continue
+            source = value
+            if isinstance(value, str):
+                p = Path(value).expanduser()
+                if not p.is_absolute() and (self.base_dir / p).is_file():
+                    source = self.base_dir / p
+            try:
+                if loader_name == "scene":
+                    from .core.recipes import load_augmentation_recipe
+                    load_augmentation_recipe(source)
+                else:
+                    from .core.object_appearance import load_object_appearance_recipe
+                    load_object_appearance_recipe(source)
+            except Exception as exc:
+                errors.append(f"defaults.{key} is invalid: {exc}")
+
         return {"ok": not errors, "errors": errors, "checks": checks, "class_map": self.class_map}
 
     def update_generation(

@@ -61,6 +61,13 @@ from .sampling import (
 from .synthesis import paste_one
 from .validation import is_valid_yolo_box
 from .recipes import BUILTIN_RECIPES, apply_scene_recipe, load_augmentation_recipe, save_augmentation_recipe
+from .object_appearance import (
+    BUILTIN_OBJECT_RECIPES,
+    apply_object_appearance,
+    load_object_appearance_recipe,
+    save_object_appearance_recipe,
+    validate_object_appearance_recipe,
+)
 
 # Underscore-prefixed aliases retained for call sites that still use the
 # historical private names. Prefer the public non-underscore spellings.
@@ -122,6 +129,11 @@ __all__ = [
     "apply_scene_recipe",
     "load_augmentation_recipe",
     "save_augmentation_recipe",
+    "BUILTIN_OBJECT_RECIPES",
+    "apply_object_appearance",
+    "load_object_appearance_recipe",
+    "save_object_appearance_recipe",
+    "validate_object_appearance_recipe",
     "CocoWriter",
     "append_coco",
     "obb_lines_for_annotations",

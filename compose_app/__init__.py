@@ -14,6 +14,6 @@ Headless / server code should ``import scenepaste`` and never need to
 touch this package.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = ["__version__"]

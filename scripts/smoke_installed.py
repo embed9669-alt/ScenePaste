@@ -22,7 +22,7 @@ def _core_smoke(work: Path) -> Path:
     from scenepaste.tools.qa import write_qa_dashboard
     from scenepaste.tools.shard import build_webdataset_shards
 
-    assert scenepaste.__version__ == "1.0.0", scenepaste.__version__
+    assert scenepaste.__version__ == "1.1.0", scenepaste.__version__
     samples = bundled_samples_root()
     assert (samples / "objects").is_dir()
     assert (samples / "backgrounds").is_dir()

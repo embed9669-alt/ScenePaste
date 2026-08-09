@@ -21,7 +21,8 @@ from PySide6.QtWidgets import (
 
 class LargeGenerationDialog(QDialog):
     def __init__(self, objects_dir=None, backgrounds_dir=None, output_dir=None,
-                 class_map_text="person=0,vehicle=1", output_format="detect", parent=None):
+                 class_map_text="person=0,vehicle=1", output_format="detect",
+                 project_defaults=None, distribution_profile=None, scene_template=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("ScenePaste — 大规模生成")
         self.resize(760, 650)
@@ -38,16 +39,18 @@ class LargeGenerationDialog(QDialog):
         self.backgrounds = self._path_row(form, "背景目录:", backgrounds_dir, directory=True)
         self.output = self._path_row(form, "输出目录:", output_dir, directory=True)
         self.class_map = QLineEdit(class_map_text); form.addRow("类别映射:", self.class_map)
-        self.count = QSpinBox(); self.count.setRange(1, 10_000_000); self.count.setValue(10000); form.addRow("生成数量:", self.count)
-        self.workers = QSpinBox(); self.workers.setRange(0, 256); self.workers.setValue(0); self.workers.setSpecialValueText("自动 (CPU-1)"); form.addRow("进程数:", self.workers)
-        self.format = QComboBox(); self.format.addItems(["detect","seg","both","coco","semantic","obb","all"]); self.format.setCurrentText(output_format); form.addRow("输出格式:", self.format)
-        self.preview = QDoubleSpinBox(); self.preview.setRange(0,1); self.preview.setDecimals(3); self.preview.setSingleStep(.01); self.preview.setValue(.01); form.addRow("Preview 比例:", self.preview)
-        self.empty_scene = QDoubleSpinBox(); self.empty_scene.setRange(0,1); self.empty_scene.setDecimals(2); self.empty_scene.setSingleStep(.05); self.empty_scene.setValue(0); form.addRow("纯背景负样本:", self.empty_scene)
-        self.recipe = QComboBox(); self.recipe.setEditable(True); self.recipe.addItems(["", "camera-mild", "surveillance", "low-light", "clean"]); self.recipe.setToolTip("可输入自定义 augmentation recipe JSON 路径"); form.addRow("增强 Recipe:", self.recipe)
-        self.blend = QComboBox(); self.blend.addItems(["alpha", "gaussian", "hard"]); form.addRow("边缘 Blend:", self.blend)
-        self.profile = self._path_row(form, "分布 Profile:", None, directory=False, file_filter="Distribution profile (*.json)")
-        self.profile_strength = QDoubleSpinBox(); self.profile_strength.setRange(0,1); self.profile_strength.setDecimals(2); self.profile_strength.setValue(1); form.addRow("Profile 强度:", self.profile_strength)
-        self.template = self._path_row(form, "Scene Template:", None, directory=False, file_filter="Scene template (*.json)")
+        defaults = dict(project_defaults or {})
+        self.count = QSpinBox(); self.count.setRange(1, 10_000_000); self.count.setValue(int(defaults.get("count", 10000))); form.addRow("生成数量:", self.count)
+        self.workers = QSpinBox(); self.workers.setRange(0, 256); self.workers.setValue(int(defaults.get("workers", 0))); self.workers.setSpecialValueText("自动 (CPU-1)"); form.addRow("进程数:", self.workers)
+        self.format = QComboBox(); self.format.addItems(["detect","seg","both","coco","semantic","obb","all"]); self.format.setCurrentText(str(defaults.get("output_format", output_format))); form.addRow("输出格式:", self.format)
+        self.preview = QDoubleSpinBox(); self.preview.setRange(0,1); self.preview.setDecimals(3); self.preview.setSingleStep(.01); self.preview.setValue(float(defaults.get("preview_ratio", .01))); form.addRow("Preview 比例:", self.preview)
+        self.empty_scene = QDoubleSpinBox(); self.empty_scene.setRange(0,1); self.empty_scene.setDecimals(2); self.empty_scene.setSingleStep(.05); self.empty_scene.setValue(float(defaults.get("empty_scene_prob", 0))); form.addRow("纯背景负样本:", self.empty_scene)
+        self.recipe = QComboBox(); self.recipe.setEditable(True); self.recipe.addItems(["", "camera-mild", "surveillance", "low-light", "clean"]); self.recipe.setCurrentText(str(defaults.get("augmentation_recipe", "") or "")); self.recipe.setToolTip("整图相机域增强；可输入自定义 JSON 路径"); form.addRow("场景 Recipe:", self.recipe)
+        self.object_recipe = QComboBox(); self.object_recipe.setEditable(True); self.object_recipe.addItems(["", "mild", "surveillance-object", "legacy", "off"]); self.object_recipe.setCurrentText(str(defaults.get("object_appearance_recipe", "") or "")); self.object_recipe.setToolTip("单个贴图外观增强；空=保持 v1.0 兼容轻量 HSV；推荐先尝试 mild；可输入自定义 JSON"); form.addRow("目标外观 Recipe:", self.object_recipe)
+        self.blend = QComboBox(); self.blend.addItems(["alpha", "gaussian", "hard"]); self.blend.setCurrentText(str(defaults.get("blend_mode", "alpha"))); form.addRow("边缘 Blend:", self.blend)
+        self.profile = self._path_row(form, "分布 Profile:", distribution_profile, directory=False, file_filter="Distribution profile (*.json)")
+        self.profile_strength = QDoubleSpinBox(); self.profile_strength.setRange(0,1); self.profile_strength.setDecimals(2); self.profile_strength.setValue(float(defaults.get("profile_strength", 1))); form.addRow("Profile 强度:", self.profile_strength)
+        self.template = self._path_row(form, "Scene Template:", scene_template, directory=False, file_filter="Scene template (*.json)")
         self.run_id = QLineEdit(); self.run_id.setPlaceholderText("留空自动生成；恢复指定 run 时填写"); form.addRow("Run ID:", self.run_id)
         self.resume = QCheckBox("恢复未完成 Run（Run ID 留空时自动找最新未完成）"); form.addRow("", self.resume)
         layout.addLayout(form)
@@ -107,6 +110,8 @@ class LargeGenerationDialog(QDialog):
                 "--preview-ratio", str(self.preview.value()), "--profile-strength", str(self.profile_strength.value()),
                 "--empty-scene-prob", str(self.empty_scene.value()), "--blend-mode", self.blend.currentText()]
         if self.recipe.currentText().strip(): args += ["--augmentation-recipe", self.recipe.currentText().strip()]
+        if self.object_recipe.currentText().strip():
+            args += ["--object-appearance-recipe", self.object_recipe.currentText().strip()]
         if self.profile.text().strip(): args += ["--distribution-profile", self.profile.text().strip()]
         if self.template.text().strip(): args += ["--scene-template", self.template.text().strip()]
         if self.run_id.text().strip(): args += ["--run-id", self.run_id.text().strip()]

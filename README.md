@@ -8,7 +8,7 @@ ScenePaste is a local-first desktop studio and CLI for building **controllable s
 
 **assets → scene composition → reusable templates → batch synthesis → automatic annotations → visual inspection → dataset QA → model hard-mining → curation / sharding**
 
-> **Status: v1.0.0 Stable.** ScenePaste has completed the release-consistency pass for packaging, bundled samples, deterministic generation, annotation formats and dataset tools. Synthetic data should still be visually reviewed and evaluated against a real held-out validation/test set.
+> **Status: v1.1.0 Stable.** ScenePaste adds auditable per-object appearance recipes on top of the v1.0 production baseline, while preserving deterministic/resumable generation and annotation geometry. Synthetic data should still be visually reviewed and evaluated against a real held-out validation/test set.
 
 ![ScenePaste desktop editor](docs/images/ui_overview.png)
 
@@ -79,7 +79,8 @@ ScenePaste does **not** claim a new Copy-Paste research algorithm. Its goal is t
 - **Distribution-driven generation** — learn class/count/position/scale plus crowding/overlap statistics from LabelMe, YOLO Detect/Seg/OBB or COCO, or mix several domain profiles with explicit weights.
 - **Resumable multiprocessing** — deterministic per-index plans, bounded process queues and SQLite run state.
 - **Deterministic runs**, run IDs, crash-safe per-sample metadata, background LRU cache and sampled previews.
-- **Augmentation Recipes + blend modes** — reproducible camera/surveillance/low-light appearance pipelines with alpha, hard-edge or Gaussian-edge blending.
+- **Object Appearance Recipes** — class-aware per-cutout brightness/contrast, hue/saturation, gamma, temperature, blur, noise, JPEG, motion blur, sharpness and low-resolution degradation, with per-instance metadata.
+- **Scene Augmentation Recipes + blend modes** — reproducible camera/surveillance/low-light full-image pipelines with alpha, hard-edge or Gaussian-edge blending.
 - **QA + curation Dashboard** — integrity, exact/pHash/embedding leakage, visual uniqueness, class/scale/position/crowding distributions, actual rendered visibility diagnostics, reuse and target-vs-generated drift.
 - **Detect / Seg / OBB hard-example mining** — consume YOLO-style prediction TXT with confidence, rank FN/FP/low-confidence/geometry failures and emit a reusable hard distribution profile.
 - **Real vs synthetic comparison** — compare class/count/geometry distributions plus lightweight visual-domain similarity.
@@ -286,19 +287,21 @@ scenepaste generate \
   --class-map "person=0,truck=1" \
   --count 20000 \
   --output-format all \
+  --object-appearance-recipe mild \
   --augmentation-recipe surveillance \
   --blend-mode gaussian \
   --blend-sigma 1.5 \
   --empty-scene-prob 0.10
 ```
 
-Built-ins are `clean`, `camera-mild`, `surveillance`, and `low-light`. Export one to JSON and tune probabilities/ranges for your camera:
+`--object-appearance-recipe` diversifies each cutout (brightness/contrast, hue/saturation, gamma, temperature, blur/noise, JPEG, motion blur, sharpness and low-resolution degradation) before color-match. Neighborhood filters are alpha-aware, custom recipes are validated strictly, and every applied object effect is recorded in run metadata/QA. Scene recipes (`clean` / `camera-mild` / `surveillance` / `low-light`) still run on the finished image. Export and tune:
 
 ```bash
+scenepaste recipe --kind object export mild -o my_object_recipe.json
 scenepaste recipe export camera-mild -o my_camera_recipe.json
 ```
 
-See [docs/AUGMENTATION_RECIPES.md](docs/AUGMENTATION_RECIPES.md).
+See [docs/OBJECT_APPEARANCE.md](docs/OBJECT_APPEARANCE.md) and [docs/AUGMENTATION_RECIPES.md](docs/AUGMENTATION_RECIPES.md).
 
 ### Resumable multiprocessing
 
@@ -552,7 +555,7 @@ Top-level `analyze_datasets.py`, `split_dataset.py` and `merge_datasets.py` are 
 pytest -q
 ```
 
-For the v1.0.0 release, the headless suite verifies the core generator, project manifests, Detect/Seg/OBB hard mining, overlap-aware profiles, generation visibility diagnostics, leakage checks, diversity selection, real-vs-synthetic comparison, WebDataset sharding, live run telemetry and the established annotation/template/data-tool paths. Qt-dependent GUI modules are additionally exercised by CI when `PySide6` is installed. The exact local test count is reported by `pytest`; Qt-dependent modules run in the cross-platform CI matrix when PySide6 is installed. CI also installs the built wheel outside the repository and runs an end-to-end sample smoke test.
+For the v1.1.0 release, the headless suite verifies the core generator, project manifests, Detect/Seg/OBB hard mining, overlap-aware profiles, generation visibility diagnostics, leakage checks, diversity selection, real-vs-synthetic comparison, WebDataset sharding, live run telemetry and the established annotation/template/data-tool paths. Qt-dependent GUI modules are additionally exercised by CI when `PySide6` is installed. The exact local test count is reported by `pytest`; Qt-dependent modules run in the cross-platform CI matrix when PySide6 is installed. CI also installs the built wheel outside the repository and runs an end-to-end sample smoke test.
 
 Build a clean release archive:
 

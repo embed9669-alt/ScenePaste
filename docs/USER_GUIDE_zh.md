@@ -139,13 +139,18 @@ scenepaste profile mix factory.json tunnel.json -w 0.7 0.3 -o mixed_profile.json
 
 ## 8. 增强 Recipe、融合方式与纯背景负样本
 
-ScenePaste 支持在场景几何与标注确定后执行**不改变空间位置**的图像级增强。这样 Detect / Seg / OBB / Semantic / COCO 标签仍然保持对齐。
+ScenePaste 有两层外观增强：
+
+1. **目标外观 Recipe**（粘贴前，针对单个 cutout）——见 [OBJECT_APPEARANCE.md](OBJECT_APPEARANCE.md)
+2. **场景 Recipe**（几何与标注确定后，作用于整张图）——不改变空间位置，Detect / Seg / OBB / Semantic / COCO 仍对齐
 
 查看内置 Recipe：
 
 ```bash
 scenepaste recipe list
 scenepaste recipe show surveillance
+scenepaste recipe --kind object list
+scenepaste recipe --kind object show mild
 ```
 
 典型批量生成：
@@ -153,16 +158,21 @@ scenepaste recipe show surveillance
 ```bash
 scenepaste generate ... \
   --output-format all \
+  --object-appearance-recipe mild \
   --augmentation-recipe surveillance \
   --blend-mode gaussian \
   --blend-sigma 1.5 \
   --empty-scene-prob 0.10
 ```
 
+场景 Recipe：
+
 - `clean`：不增加场景后处理；
 - `camera-mild`：轻量亮度/对比度、Gamma、噪声、压缩和分辨率退化；
 - `surveillance`：更偏监控画面的压缩、噪声、下采样、运动模糊；
 - `low-light`：弱光、噪声和暗角。
+
+目标外观 Recipe 推荐从 `mild` 开始；不设 `--object-appearance-recipe` 时保持 v1.0 轻量 HSV。
 
 `--blend-mode` 支持 `alpha / hard / gaussian`；`--empty-scene-prob` 用于按比例生成**纯背景负样本**，对减少误检尤其有帮助。可以把内置 Recipe 导出成 JSON 再按自己的真实相机修改：
 

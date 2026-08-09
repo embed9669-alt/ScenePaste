@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import random
-from typing import Tuple
+from typing import List, Mapping, Optional, Tuple
 
 import cv2
 import numpy as np
 
 from .models import ObjectAsset
+from .object_appearance import apply_object_appearance, load_object_appearance_recipe
 
 
 def resize_asset(
@@ -34,6 +35,38 @@ def resize_asset(
     return image, alpha
 
 
+def _legacy_hsv_blur(
+    image: np.ndarray,
+    alpha: np.ndarray,
+    rng: random.Random,
+    blur_prob: float,
+) -> Tuple[np.ndarray, List[dict]]:
+    """Historical v1.0 light HSV jitter + optional blur (no recipe configured)."""
+    mask = alpha > 0.10
+    if not np.any(mask):
+        return image, []
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
+    sat = rng.uniform(0.90, 1.10)
+    val = rng.uniform(0.88, 1.12)
+    hue = rng.uniform(-2.0, 2.0)
+    hsv[..., 1] *= sat
+    hsv[..., 2] *= val
+    hsv[..., 0] = np.mod(hsv[..., 0] + hue, 180.0)
+    hsv[..., 1:] = np.clip(hsv[..., 1:], 0, 255)
+    foreground = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+    applied: List[dict] = [{
+        "effect": "hsv_jitter",
+        "hue": hue,
+        "saturation": sat,
+        "value": val,
+    }]
+    if rng.random() < blur_prob:
+        sigma = rng.uniform(0.25, 0.75)
+        foreground = cv2.GaussianBlur(foreground, (0, 0), sigma)
+        applied.append({"effect": "gaussian_blur", "sigma": sigma})
+    return foreground, applied
+
+
 def augment_foreground(
     image: np.ndarray,
     alpha: np.ndarray,
@@ -41,39 +74,64 @@ def augment_foreground(
     rng: random.Random,
     color_match_strength: float,
     blur_prob: float,
-) -> np.ndarray:
-    """Apply light HSV jitter + optional color-match + optional blur.
+    *,
+    object_appearance_recipe: Optional[Mapping[str, object] | str] = None,
+    class_label: Optional[str] = None,
+) -> Tuple[np.ndarray, List[dict]]:
+    """Apply object appearance + optional color-match.
 
-    Color matching pulls the foreground mean toward the local background
-    patch mean by ``color_match_strength`` in ``[0, 1]``.
+    Returns ``(foreground_bgr, applied_effect_metadata)``.
+
+    When ``object_appearance_recipe`` is set, photometric/degrade effects come
+    from the recipe (``blur_prob`` only fills ``gaussian_blur.p = null`` for
+    the ``legacy`` built-in). When unset, the historical HSV + blur path runs.
+    Color matching remains a separate blend step after appearance.
     """
-    foreground = image.astype(np.float32)
     mask = alpha > 0.10
     if not np.any(mask):
-        return image
+        return image, []
 
-    # Light brightness/saturation jitter (avoids unnatural strong color shifts).
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
-    hsv[..., 1] *= rng.uniform(0.90, 1.10)
-    hsv[..., 2] *= rng.uniform(0.88, 1.12)
-    hsv[..., 0] = np.mod(hsv[..., 0] + rng.uniform(-2.0, 2.0), 180.0)
-    hsv[..., 1:] = np.clip(hsv[..., 1:], 0, 255)
-    foreground = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR).astype(np.float32)
+    recipe = object_appearance_recipe
+    if isinstance(recipe, str) or recipe is None:
+        # ``None`` keeps legacy path; string/path/name goes through the loader.
+        loaded = load_object_appearance_recipe(recipe) if recipe else None
+    else:
+        loaded = recipe
 
+    if loaded is None:
+        foreground, applied = _legacy_hsv_blur(image, alpha, rng, blur_prob)
+    else:
+        foreground, applied = apply_object_appearance(
+            image,
+            alpha,
+            loaded,
+            rng,
+            class_label=class_label,
+            blur_prob_fallback=blur_prob,
+        )
+
+    foreground = foreground.astype(np.float32)
     if color_match_strength > 0 and background_patch.size:
-        target_pixels = foreground[mask]
-        background_pixels = background_patch.reshape(-1, 3).astype(np.float32)
-        if len(target_pixels) and len(background_pixels):
-            target_mean = target_pixels.mean(axis=0)
-            background_mean = background_pixels.mean(axis=0)
+        # Match only the pixels actually covered by the object. Using the
+        # whole bounding rectangle biases thin/rotated objects toward unrelated
+        # background colors and can produce visible color casts. Soft alpha
+        # weighting also keeps antialiased edges consistent.
+        weights = np.clip(alpha.astype(np.float32), 0.0, 1.0)
+        total = float(weights.sum())
+        if total > 1e-6 and background_patch.shape[:2] == foreground.shape[:2]:
+            target_mean = (foreground * weights[..., None]).sum(axis=(0, 1)) / total
+            bg = background_patch.astype(np.float32)
+            background_mean = (bg * weights[..., None]).sum(axis=(0, 1)) / total
             shift = (background_mean - target_mean) * color_match_strength
             foreground += shift.reshape(1, 1, 3)
+            applied = list(applied) + [{
+                "effect": "color_match",
+                "strength": float(color_match_strength),
+                "shift_bgr": [float(x) for x in shift.reshape(-1)],
+            }]
 
     foreground = np.clip(foreground, 0, 255).astype(np.uint8)
-    if rng.random() < blur_prob:
-        sigma = rng.uniform(0.25, 0.75)
-        foreground = cv2.GaussianBlur(foreground, (0, 0), sigma)  # type: ignore[assignment]
-    return foreground
+    return foreground, applied
 
 
 def rotate_asset(image: np.ndarray, alpha: np.ndarray, angle: float) -> Tuple[np.ndarray, np.ndarray]:

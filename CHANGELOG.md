@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.1.0] — 2026-08-09
+
+### Added
+- **Object Appearance Recipes** for per-cutout diversification (`mild`, `surveillance-object`, `legacy`, `off`) with brightness/contrast, saturation, hue, gamma, color temperature, blur, noise, JPEG, motion blur and resolution degrade.
+- Class-aware `by_class` overrides in object appearance JSON.
+- `--object-appearance-recipe` on `scenepaste generate`; `scenepaste recipe --kind object list|show|export`.
+- Per-instance `object_effects` in generation metadata fragments and `object_effect_counts` in run diagnostics.
+- Large-generate GUI picker for object appearance recipes; blank keeps v1.0-compatible legacy behavior, `mild` is the recommended opt-in starting point.
+- Docs: `docs/OBJECT_APPEARANCE.md`.
+
+### Changed
+- Object recipes are preloaded once per generation worker instead of re-reading custom JSON for every pasted instance.
+- Color matching now uses alpha-weighted object-footprint statistics rather than the whole bounding rectangle.
+- Blur, motion blur and low-resolution degradation use alpha-aware filtering to avoid pulling mask-exterior pixels into object edges.
+- Recipe validation rejects unknown effects/fields and validates ranges; `hue.range` is explicitly measured in degrees.
+- QA Dashboard adds object-level and scene-level appearance coverage tables.
+- Project-relative custom recipe paths resolve from `scenepaste.project.json`, and the large-generation GUI inherits project defaults.
+- Added optional object-level sharpness variation.
+
+### Compatibility
+- Leaving `--object-appearance-recipe` unset keeps the historical light HSV + `blur_prob` path.
+
 ## [1.0.0] — 2026-08-09
 
 ### Stable release

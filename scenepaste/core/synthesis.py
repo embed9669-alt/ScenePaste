@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import List, Optional, Tuple
+from typing import List, Mapping, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -12,6 +12,7 @@ from .augmentation import augment_foreground, resize_asset, rotate_asset
 from .config import GenerationConfig
 from .geometry import box_iou
 from .models import ObjectAsset, PlacementSpec
+from .object_appearance import load_object_appearance_recipe
 from .sampling import sample_bottom_point
 
 # How many random placement attempts before giving up on one instance.
@@ -27,12 +28,15 @@ def paste_one(
     rng: random.Random,
     class_mask: Optional[np.ndarray] = None,
     placement: Optional[PlacementSpec] = None,
-) -> Optional[Tuple[Tuple[int, int, int, int], bool, tuple]]:
+    object_appearance_recipe: Optional[Mapping[str, object]] = None,
+) -> Optional[Tuple[Tuple[int, int, int, int], bool, tuple, list]]:
     """Try to paste ``asset`` onto ``canvas`` without exceeding ``config.max_iou``.
 
-    Returns ``(box_xyxy, flipped, transform)`` on success, where ``transform``
-    is ``(scale, x1, y1, flip, angle)`` carrying the *final* geometry (used by
-    segmentation/COCO writers to derive visible masks accurately).
+    Returns ``(box_xyxy, flipped, transform, appearance_effects)`` on success,
+    where ``transform`` is ``(scale, x1, y1, flip, angle)`` carrying the
+    *final* geometry (used by segmentation/COCO writers to derive visible
+    masks accurately) and ``appearance_effects`` lists object-level
+    photometric / degrade metadata for QA.
 
     When ``class_mask`` is provided, the pasted region's class id is written
     into it (z-order handles occlusion naturally).
@@ -41,6 +45,11 @@ def paste_one(
     :data:`PLACEMENT_MAX_ATTEMPTS` attempts.
     """
     height, width = canvas.shape[:2]
+    # Main generation workers preload custom recipe JSON once. Direct callers
+    # still get a safe fallback so the public ``paste_one`` API remains useful.
+    appearance_recipe = object_appearance_recipe
+    if appearance_recipe is None and config.object_appearance_recipe:
+        appearance_recipe = load_object_appearance_recipe(config.object_appearance_recipe)
     for attempt in range(PLACEMENT_MAX_ATTEMPTS):
         if placement is not None and placement.center_x_ratio is not None and placement.bottom_y_ratio is not None:
             # Small retry jitter only after the requested position fails.
@@ -111,13 +120,15 @@ def paste_one(
                 continue
 
         patch = canvas[y1:y2, x1:x2]
-        foreground = augment_foreground(
+        foreground, appearance_effects = augment_foreground(
             foreground,
             alpha,
             patch,
             rng,
             config.color_match_strength,
             config.blur_prob,
+            object_appearance_recipe=appearance_recipe,
+            class_label=asset.label,
         )
         blend_alpha = alpha.astype(np.float32)
         if config.blend_mode == "hard":
@@ -139,5 +150,5 @@ def paste_one(
         # masks from the *true* scale + translation rather than the bbox.
         # scale refers to the pre-rotation source scaling; angle makes the transform reconstructable.
         transform = (effective_scale, x1, y1, flip, angle)
-        return box, flip, transform
+        return box, flip, transform, appearance_effects
     return None
