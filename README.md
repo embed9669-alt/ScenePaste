@@ -12,9 +12,37 @@ ScenePaste is a local-first desktop studio and CLI for building **controllable s
 
 ![ScenePaste desktop editor](docs/images/ui_overview.png)
 
+<details>
+<summary>Light theme &amp; project settings</summary>
+
+![Light theme](docs/images/ui_overview_light.png)
+
+![Project settings](docs/images/ui_settings.png)
+
+</details>
+
 ### What it produces
 
 ![Background and generated ScenePaste sample](docs/images/example_before_after.jpg)
+
+Same scene, multiple annotation tasks from one render (`--output-format all`):
+
+![Detect / Segmentation / OBB / Semantic](docs/images/example_formats.png)
+
+| Detect | Segmentation | OBB | Semantic |
+|---|---|---|---|
+| axis-aligned boxes | instance polygons | oriented boxes | per-pixel class masks |
+
+<details>
+<summary>Dataset Explorer · Data Loop Center · QA</summary>
+
+![Dataset Explorer with multi-format overlays](docs/images/ui_explorer.png)
+
+![Data Loop Center](docs/images/ui_data_loop.png)
+
+![QA summary card](docs/images/example_qa.png)
+
+</details>
 
 The source repository and installed wheel both ship a tiny public sample dataset, so the GUI can be tried without preparing your own assets first.
 
@@ -310,6 +338,12 @@ scenepaste generate ... \
 | `all` | Detect + Seg + OBB + Semantic + COCO | one-pass multi-task export |
 
 Semantic masks reserve value `0` for background. Dataset class `0` is stored as mask value `1`, class `1` as `2`, and so on. See [docs/FORMATS.md](docs/FORMATS.md).
+
+Regenerate the multi-format collage and Explorer/QA shots used above with:
+
+```bash
+python scripts/capture_docs_screenshots.py
+```
 
 ## Dataset Explorer
 

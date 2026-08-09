@@ -12,9 +12,37 @@ ScenePaste 是一个本地运行的桌面软件 + CLI，用真实目标素材和
 
 ![ScenePaste 桌面编辑器](docs/images/ui_overview.png)
 
+<details>
+<summary>浅色主题与项目设置</summary>
+
+![浅色主题](docs/images/ui_overview_light.png)
+
+![项目设置](docs/images/ui_settings.png)
+
+</details>
+
 ### 实际生成效果
 
 ![背景与 ScenePaste 合成结果](docs/images/example_before_after.jpg)
+
+同一次合成可导出多种标注任务（`--output-format all`）：
+
+![Detect / Segmentation / OBB / Semantic](docs/images/example_formats.png)
+
+| Detect | Segmentation | OBB | Semantic |
+|---|---|---|---|
+| 轴对齐检测框 | 实例分割多边形 | 旋转框 | 语义分割像素掩码 |
+
+<details>
+<summary>数据集浏览器 · 数据闭环中心 · QA</summary>
+
+![多格式叠加的 Dataset Explorer](docs/images/ui_explorer.png)
+
+![数据闭环中心](docs/images/ui_data_loop.png)
+
+![QA 摘要](docs/images/example_qa.png)
+
+</details>
 
 源码仓库和正式 wheel 都内置一套很小的公开示例数据，无需准备自己的素材就可以直接体验 GUI；源码树还可直接用 `samples/` 跑 CLI 示例。
 
@@ -287,6 +315,11 @@ Scene Template v2 支持 X/Y 范围、尺度范围、角度范围、实例出现
 
 Semantic mask 固定保留 `0` 为背景，数据集 class `0` 写为 mask value `1`，依次类推。详见 [docs/FORMATS.md](docs/FORMATS.md)。
 
+重新生成上文多格式拼图与 Explorer / QA 截图：
+
+```bash
+python scripts/capture_docs_screenshots.py
+```
 
 ## 用模型难例闭环下一轮生成
 

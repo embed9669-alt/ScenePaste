@@ -79,11 +79,11 @@ def _compose_demo_scene(win: MainWindow) -> None:
     for i in range(len(win.doc.cutouts)):
         if i not in order:
             order.append(i)
-    # Grounded across the lower third; slight poses, no stacking.
+    # Grounded across the lower third; tilted so OBB / rotate demos read clearly.
     layout = [
-        (0.22, 0.78, 0.40, 0.0, False),   # person
-        (0.55, 0.76, 0.30, 0.0, True),    # truck (flipped)
-        (0.85, 0.82, 0.18, 0.0, False),   # motorcycle (clear of truck)
+        (0.24, 0.76, 0.38, 16.0, False),   # person
+        (0.55, 0.74, 0.30, -20.0, False), # truck
+        (0.82, 0.80, 0.18, 26.0, False),  # motorcycle
     ]
     for idx, (xr, yr, hr, ang, flip) in zip(order, layout):
         win._add_instance(idx, w * xr, h * yr)
