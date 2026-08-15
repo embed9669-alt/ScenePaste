@@ -1,0 +1,119 @@
+{
+  "schema": "scenepaste/scene-template",
+  "version": 2,
+  "canvas": {
+    "width": 800,
+    "height": 600
+  },
+  "instances": [
+    {
+      "source": "sample_truck.json#0",
+      "label": "truck",
+      "class_id": 1,
+      "cx_ratio": 0.42,
+      "cy_ratio": 0.73,
+      "h_ratio": 0.29,
+      "flip": false,
+      "angle": 0.0,
+      "source_name": "sample_truck.json#0",
+      "variation": {
+        "cx_range": [
+          0.38,
+          0.45999999999999996
+        ],
+        "cy_range": [
+          0.7,
+          0.76
+        ],
+        "h_range": [
+          0.2552,
+          0.32480000000000003
+        ],
+        "angle_range": [
+          -8.0,
+          8.0
+        ],
+        "enabled_probability": 0.95,
+        "flip_probability": 0.5,
+        "same_class_random": true,
+        "allow_overlap": true
+      }
+    },
+    {
+      "source": "sample_motorcycle.json#0",
+      "label": "motorcycle",
+      "class_id": 2,
+      "cx_ratio": 0.72,
+      "cy_ratio": 0.76,
+      "h_ratio": 0.2,
+      "flip": false,
+      "angle": -3.0,
+      "source_name": "sample_motorcycle.json#0",
+      "variation": {
+        "cx_range": [
+          0.6799999999999999,
+          0.76
+        ],
+        "cy_range": [
+          0.73,
+          0.79
+        ],
+        "h_range": [
+          0.17600000000000002,
+          0.22400000000000003
+        ],
+        "angle_range": [
+          -11.0,
+          5.0
+        ],
+        "enabled_probability": 0.95,
+        "flip_probability": 0.5,
+        "same_class_random": true,
+        "allow_overlap": true
+      }
+    },
+    {
+      "source": "sample_person.json#0",
+      "label": "person",
+      "class_id": 0,
+      "cx_ratio": 0.6,
+      "cy_ratio": 0.58,
+      "h_ratio": 0.17,
+      "flip": true,
+      "angle": 0.0,
+      "source_name": "sample_person.json#0",
+      "variation": {
+        "cx_range": [
+          0.5599999999999999,
+          0.64
+        ],
+        "cy_range": [
+          0.5499999999999999,
+          0.61
+        ],
+        "h_range": [
+          0.1496,
+          0.19040000000000004
+        ],
+        "angle_range": [
+          -8.0,
+          8.0
+        ],
+        "enabled_probability": 0.95,
+        "flip_probability": 0.5,
+        "same_class_random": true,
+        "allow_overlap": true
+      }
+    }
+  ],
+  "parameters": {
+    "position_jitter_x": 0.04,
+    "position_jitter_y": 0.03,
+    "scale_jitter": 0.12,
+    "angle_jitter": 8.0,
+    "instance_probability": 0.95,
+    "flip_probability": 0.5,
+    "same_class_random": true,
+    "allow_overlap": true
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "version": "4.0.0",
+  "flags": {},
+  "shapes": [
+    {
+      "label": "paste_zone",
+      "score": null,
+      "points": [
+        [40, 320],
+        [760, 320],
+        [790, 580],
+        [20, 580]
+      ],
+      "group_id": null,
+      "description": "Lower road / ground band for grounded placement demos",
+      "difficult": false,
+      "shape_type": "polygon",
+      "flags": {},
+      "attributes": {}
+    }
+  ],
+  "imagePath": "sample_bg_with_road.jpg",
+  "imageData": null,
+  "imageHeight": 600,
+  "imageWidth": 800
+}

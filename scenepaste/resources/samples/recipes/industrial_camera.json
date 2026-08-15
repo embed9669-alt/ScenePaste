@@ -1,0 +1,13 @@
+{
+  "schema": "scenepaste/augmentation-recipe",
+  "version": 1,
+  "name": "industrial-camera",
+  "effects": {
+    "brightness_contrast": {"p": 0.45, "brightness": [-0.08, 0.05], "contrast": [0.9, 1.12]},
+    "gamma": {"p": 0.20, "range": [0.9, 1.12]},
+    "gaussian_noise": {"p": 0.30, "sigma": [1.5, 6.0]},
+    "motion_blur": {"p": 0.15, "ksize": [3, 7]},
+    "downscale": {"p": 0.15, "scale": [0.75, 0.95]},
+    "jpeg": {"p": 0.30, "quality": [75, 95]}
+  }
+}

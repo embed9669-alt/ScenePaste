@@ -1,0 +1,64 @@
+# Python / build
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Test / tooling
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Generated datasets and user data
+generated/
+output/
+runs/
+objects/
+backgrounds/
+new_data/
+newdata2/
+cutouts/
+previews/
+*.tmp
+*.log
+
+# Ignore common image data by default; explicitly keep bundled samples/docs.
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.webp
+!samples/**
+!docs/**
+# Package-bundled samples (wheel ★ Load Sample); must win over objects/ + *.jpg
+!scenepaste/resources/samples/
+!scenepaste/resources/samples/**
+# ScenePaste runtime state / generated reports
+.scenepaste/
+qa_dashboard.html
+qa_report.json
+distribution_profile.json
+target_distribution_profile.json
+active_scene_template.json
+
+hardmine/
+comparison/
+shards/
+leakage_report.json
+diversity_report.json
+diversity_report.csv

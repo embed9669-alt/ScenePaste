@@ -1,0 +1,30 @@
+{
+  "schema": "scenepaste/object-appearance-recipe",
+  "version": 1,
+  "name": "industrial-object-mild",
+  "effects": {
+    "brightness_contrast": {"p": 0.8, "brightness": [-0.1, 0.1], "contrast": [0.9, 1.12]},
+    "saturation": {"p": 0.55, "range": [0.82, 1.18]},
+    "hue": {"p": 0.3, "range": [-4, 4]},
+    "gamma": {"p": 0.3, "range": [0.9, 1.15]},
+    "color_temperature": {"p": 0.25, "strength": [-10, 10]},
+    "gaussian_blur": {"p": 0.22, "sigma": [0.2, 0.9]},
+    "gaussian_noise": {"p": 0.18, "sigma": [1, 4]},
+    "resolution_degrade": {"p": 0.4, "scale": [0.4, 0.9]},
+    "sharpness": {"p": 0.12, "amount": [0.88, 1.12]}
+  },
+  "by_class": {
+    "person": {
+      "effects": {
+        "hue": {"p": 0.15, "range": [-2, 2]},
+        "resolution_degrade": {"p": 0.5, "scale": [0.32, 0.85]}
+      }
+    },
+    "truck": {
+      "effects": {
+        "saturation": {"p": 0.7, "range": [0.75, 1.25]},
+        "hue": {"p": 0.4, "range": [-6, 6]}
+      }
+    }
+  }
+}

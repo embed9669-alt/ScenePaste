@@ -1,0 +1,12 @@
+recursive-include scripts *.py *.sh *.bat
+recursive-include scenepaste/resources/samples *
+recursive-include samples *
+recursive-include docs *
+include LICENSE
+include THIRD_PARTY_NOTICES.md
+include README.md
+include README_zh.md
+include CHANGELOG.md
+include SECURITY.md
+include CODE_OF_CONDUCT.md
+include CONTRIBUTING.md

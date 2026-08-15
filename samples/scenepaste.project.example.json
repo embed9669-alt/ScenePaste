@@ -1,0 +1,25 @@
+{
+  "schema": "scenepaste/project",
+  "version": 1,
+  "name": "ScenePaste sample project",
+  "paths": {
+    "objects": "objects",
+    "backgrounds": "backgrounds",
+    "output": "../generated",
+    "real_dataset": null,
+    "validation_dataset": null,
+    "predictions": null,
+    "distribution_profile": null,
+    "scene_template": "templates/parameterized_mixed_traffic.json"
+  },
+  "class_map": {
+    "person": 0,
+    "truck": 1,
+    "motorcycle": 2
+  },
+  "defaults": {
+    "workers": 0,
+    "output_format": "all",
+    "preview_ratio": 0.01
+  }
+}
