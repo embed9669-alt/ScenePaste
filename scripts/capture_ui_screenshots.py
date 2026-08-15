@@ -92,7 +92,7 @@ def _compose_demo_scene(win: MainWindow) -> None:
         inst.flip = flip
         inst.invalidate_cache()
 
-    # Main-window batch defaults (「生成默认」tab).
+    # Main-window batch defaults (「批量默认」tab).
     win.doc.scene_recipe = "camera-mild"
     win.doc.object_appearance_recipe = "mild"
     win.doc.blend_mode = "gaussian"
@@ -127,6 +127,44 @@ def _save(widget, path: Path) -> None:
     pix = widget.grab()
     ok = pix.save(str(path), "PNG")
     print(f"{'OK' if ok else 'FAIL'} {path} ({pix.width()}x{pix.height()})")
+
+
+def _capture_asset_studio(app: QApplication) -> None:
+    """Asset Studio with a sample LabelMe instance loaded for mask review."""
+    from compose_app_qt.asset_studio_gui import AssetStudioDialog
+    from compose_app_qt.theme import apply_theme
+
+    objects = SAMPLES / "objects"
+    images = sorted(
+        p for p in objects.iterdir()
+        if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
+    )
+    dlg = AssetStudioDialog(
+        objects_dir=objects,
+        backgrounds_dir=SAMPLES / "backgrounds",
+        parent=None,
+    )
+    apply_theme(dlg, "dark")
+    dlg.resize(1380, 860)
+    dlg.show()
+    dlg.raise_()
+    if images:
+        pick = images[0]
+        for p in images:
+            if "truck" in p.stem.lower() or "person" in p.stem.lower():
+                pick = p
+                break
+        try:
+            dlg._load_image(pick)
+        except Exception as exc:
+            print(f"WARN: asset studio load failed: {exc}", file=sys.stderr)
+        _drain(app, 1.0)
+        if hasattr(dlg, "shape_list") and dlg.shape_list.count() > 0:
+            dlg.shape_list.setCurrentRow(0)
+            _drain(app, 0.4)
+    _drain(app, 0.5)
+    _save(dlg, OUT / "ui_asset_studio.png")
+    dlg.close()
 
 
 def _capture_cutout_studio(app: QApplication) -> None:
@@ -179,7 +217,7 @@ def main() -> int:
         class_map_text="person=0,truck=1,motorcycle=2",
         theme_mode="dark",
     )
-    # Wider right panel so the 3-tab inspector (实例 / 变换·外观 / 生成默认) is readable.
+    # Wider right panel so the 3-tab inspector (实例 / 变换·外观 / 批量默认) is readable.
     win.resize(1560, 960)
     win.setMinimumSize(1280, 820)
     win.setWindowTitle("ScenePaste")
@@ -217,6 +255,11 @@ def main() -> int:
         _drain(app, 0.3)
         _save(dlg, OUT / "ui_settings.png")
         dlg.close()
+
+        try:
+            _capture_asset_studio(app)
+        except Exception as exc:
+            print(f"WARN: asset studio shot skipped: {exc}", file=sys.stderr)
 
         try:
             _capture_cutout_studio(app)

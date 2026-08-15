@@ -4,13 +4,13 @@
 
 **Controllable training-data asset and composition toolkit for computer vision.**
 
-ScenePaste V10 is a local-first desktop studio and CLI for **controllable computer-vision data production**. The production mainline is now real data → human-reviewed masks → reusable foreground/background assets → controlled Copy-Paste. Generative object editing remains available as an experimental backend instead of defining the ground truth.
+ScenePaste V10 is a local-first desktop studio and CLI for **controllable computer-vision data production**. The production mainline is real data → human-reviewed masks → reusable foreground/background assets → controlled Copy-Paste.
 
 **real images → existing/automatic segmentation → Asset Studio review → transparent foregrounds + clean backgrounds → label-first Copy-Paste → auto labels → QA → training**
 
 > **Status: v10.0.0 Stable (Copy-Paste only).** Generative backends (Stable Diffusion / Qwen / Diffusers) have been removed. The supported path is human-reviewed assets + controllable Copy-Paste. Evaluate synthetic data against a real held-out validation/test set.
 
-
+![ScenePaste welcome home — Asset Studio · batch compose · load sample](docs/images/ui_demo.gif)
 
 ## V10 mainline: Asset Studio
 
@@ -27,61 +27,44 @@ Open **Assets → Asset Studio…** (Chinese UI: `素材 → 素材工作室…`
 existing segmentation / quick cutout
         -> human mask review in Asset Studio
         -> foreground library + clean background library
-        -> controlled Copy-Paste (recommended)
+        -> controlled Copy-Paste
         -> auto labels + QA + training
 ```
 
-## Desktop UX refinement (v9.8)
+## Desktop mainline (Copy-Paste only)
 
-V9.8 focuses on first-run usability and everyday desktop ergonomics rather than adding more models. It introduces a real welcome home, recent projects, task-oriented menus, persistent layout/theme/path settings via `QSettings`, a focused toolbar, dynamic advanced model controls, a dedicated **Try 10 samples** workflow, and QA/fallback metrics in the generation dashboard.
-
-V9.9 fixes the lightweight AI generation semantics: project assets are now identity-preserved, detector rectangles are refined into foreground masks instead of pasted as rectangular source tiles, and Stable Diffusion only edits a narrow boundary band with a conservative default strength of `0.35`.
-
-## Generative model strategy
-
-V10 no longer recommends a generative editor as the production default. **Controlled Copy-Paste with human-reviewed Asset Studio foregrounds/backgrounds is the recommended path.** Lightweight SD Inpainting and Qwen remain available for experiments and ablations.
-
-## V9 data-factory mainline
-
-ScenePaste V9 keeps the proven Copy-Paste, QA, hard-mining, project-manifest and Qt workflows, while moving the main architecture to **label-first generation**:
+Welcome Home promotes **Asset Studio**, with the batch factory, recent projects and quick start close by. Menus are **File / Assets / Scene / Edit / Compose / Data / View / Help**. The right inspector tabs are **实例 / 变换·外观 / 批量默认**. The batch factory only runs controllable Copy-Paste (including **Try 10 samples**).
 
 ```text
 real background
   -> scene-region policy
   -> explicit class / position / scale plan
-  -> copy-paste | generative-paste | generative-object
-  -> label consistency QA / optional mask refinement
+  -> Copy-Paste (paste_one)
   -> Detect / Seg / OBB / COCO / Semantic
-  -> model-driven hard-case loop
+  -> QA / hard-case / curation / shards
 ```
 
-Backends are lazy and pluggable: `copy-paste`, CPU `opencv-harmonize`, experimental `light-inpaint`, advanced `diffusers-inpaint` / `qwen-local`, generic `http`, or a Python `plugin`. Core installs do not download model weights.
-
 ```bash
-scenepaste factory doctor
 scenepaste factory plan --count 20 --hardcase-recipe small-object -o plans.json
 
 scenepaste generate \
-  --objects ./objects --backgrounds ./backgrounds --output ./generated-v9 \
+  --objects ./objects --backgrounds ./backgrounds --output ./generated \
   --class-map person=0,vehicle=1 --count 5000 \
-  --generation-mode generative-paste \
-  --generator-backend opencv-harmonize \
-  --label-qa-policy warn --label-refine-mode change \
   --hardcase-recipe small-object --output-format all
 ```
 
-![ScenePaste desktop editor — 实例 / 变换·外观 / 批量生成 three-tab inspector](docs/images/ui_overview.png)
+![ScenePaste desktop editor — 实例 / 变换·外观 / 批量默认 three-tab inspector](docs/images/ui_overview.png)
 
 ### Workflow tour (GIFs)
 
-From cutout assets → data loop (re-record with `python scripts/capture_workflow_gifs.py`; add `--all` for explorer / data-loop clips):
+From cutout / asset review → data loop (re-record with `python3 scripts/capture_workflow_gifs.py`; add `--all` for explorer / data-loop clips):
 
 | Step | What you see |
 |---|---|
 | 0. Cutout Studio | Open a folder → thumbnail browser → draw / click / auto-cutout → LabelMe JSON |
 | 1. Compose | Place cutouts, scale / rotate, layer order |
 | 2. Appearance | Live sliders + recipe resample that fills the controls |
-| 3. Batch defaults | Scene / object recipe, blend, empty-scene ratio |
+| 3. Batch defaults | 「批量默认」tab: scene / object recipe, blend, empty-scene ratio |
 | 4. Explorer | Browse renders with label overlays |
 | 5. Data loop | Hard-mine / QA / compare / curation / shards |
 
@@ -98,11 +81,13 @@ From cutout assets → data loop (re-record with `python scripts/capture_workflo
 ![5 · Data Loop Center](docs/images/gif_05_data_loop.gif)
 
 <details>
-<summary>Light theme, project settings &amp; Cutout Studio</summary>
+<summary>Light theme, project settings, Asset Studio &amp; Cutout Studio</summary>
 
 ![Light theme with the same three-tab inspector](docs/images/ui_overview_light.png)
 
 ![Project settings including scene / object recipes, blend and negative-scene ratio](docs/images/ui_settings.png)
+
+![Asset Studio — edit foreground mask and background-removal mask](docs/images/ui_asset_studio.png)
 
 ![Cutout Studio — folder thumbnails + annotation canvas](docs/images/ui_cutout_studio.png)
 
@@ -155,7 +140,7 @@ ScenePaste does **not** claim a new Copy-Paste research algorithm. Its goal is t
 
 - **PySide6 scene editor** — drag, resize, rotate, flip and duplicate real cutouts, with z-order-aware occlusion.
 - **Cutout Studio** — open an image folder to browse path + thumbnails; draw polygons, **SAM2 click-to-segment**, or rembg / GroundingSAM2 auto-cutout; save LabelMe JSON; one-click model download (hf-mirror friendly).
-- **Main-window batch defaults** — scene recipe, object appearance, blend mode and empty-scene ratio stay on the right panel; shared by 批量套用, 大规模生成 and project save/load.
+- **Main-window batch defaults** — scene recipe, object appearance, blend mode and empty-scene ratio stay on the right panel; shared by batch apply, the batch factory and project save/load.
 - **Live object appearance preview** — select an instance, enable a recipe, tweak brightness / contrast / saturation / blur, or resample; RGB-only, labels stay aligned.
 - **Object Appearance Recipes** — class-aware per-cutout photometric and resolution degrade (alpha-aware edges), with per-instance metadata and QA coverage.
 - **Scene Augmentation Recipes + blend modes** — camera/surveillance/low-light full-image pipelines with alpha / hard / gaussian blending.
@@ -731,14 +716,13 @@ See [docs/ROADMAP.md](docs/ROADMAP.md).
 ScenePaste is an **independently developed project**. It is not a fork of the projects below, and listing a project here does not imply endorsement or code ownership. The current data-factory direction, model integrations, annotation interoperability, and dataset tooling have been informed by excellent work across the open-source computer-vision ecosystem:
 
 - **[NVIDIA Physical AI Data Factory](https://github.com/NVIDIA/physical-ai-data-factory)** — an important reference for the broader data-factory workflow: synthetic-data generation, augmentation, labeling, quality control, and data-centric Physical AI workflows.
-- **[Qwen-Image / Qwen-Image-Edit](https://github.com/QwenLM/Qwen-Image)** — the primary generative image-editing family integrated by ScenePaste's local/bridge Qwen workflows.
 - **[Meta SAM 2](https://github.com/facebookresearch/sam2)** — a major reference for promptable segmentation and mask-assisted annotation workflows.
 - **[Grounded SAM 2](https://github.com/IDEA-Research/Grounded-SAM-2)** — a reference for open-vocabulary grounding + segmentation and automatic object-extraction pipelines.
 - **[LabelMe](https://github.com/wkentaro/labelme)** and **[X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling)** — important references for annotation formats and AI-assisted labeling UX. ScenePaste supports interoperability with LabelMe-style annotations; these GPL projects are listed as references/interoperability targets and their source code is not copied or bundled into ScenePaste.
 - **[rembg](https://github.com/danielgatis/rembg)** — optional foreground-extraction backend used by ScenePaste's automatic cutout workflow.
 - **[WebDataset](https://github.com/webdataset/webdataset)** — inspiration for deterministic tar-sharding and sequential access to large generated datasets.
 
-ScenePaste also interoperates with the broader **Hugging Face / Diffusers**, **OpenCV**, **PySide6 / Qt**, **YOLO**, and **COCO** ecosystems.
+ScenePaste also interoperates with the broader **OpenCV**, **PySide6 / Qt**, **YOLO**, and **COCO** ecosystems (optional Hugging Face stacks remain for cutout/embeddings only).
 
 For the distinction between direct dependencies, optional integrations, design references, model assets, and third-party licenses, see **[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)** and [docs/INSPIRATION.md](docs/INSPIRATION.md).
 
@@ -747,96 +731,6 @@ For the distinction between direct dependencies, optional integrations, design r
 MIT. See [LICENSE](LICENSE).
 
 
-## Experimental AI model: lightweight mask inpainting
+## Generative backends
 
-The optional lightweight generative backend uses **Stable Diffusion v1.5 Inpainting**. Since V9.9 it is identity-preserving: ScenePaste pastes the exact project asset, locks the object core, and lets inpainting edit only a narrow inner boundary band. In V10 this backend is explicitly **experimental**; the production default is reviewed assets + controlled Copy-Paste.
-
-### V9.9 identity-preserving flow
-
-```text
-project object asset
-  -> rectangle bbox: GrabCut foreground refinement
-     polygon/segmentation: use the real foreground mask
-  -> deterministic Copy-Paste (defines object identity)
-  -> semantic Label Mask
-  -> narrow inner AI Edit Band
-  -> Stable Diffusion Inpainting edits the boundary only
-  -> object core remains the exact project composite
-  -> Label QA / retry / fallback
-```
-
-The default edit strength is **0.35** (recommended **0.25–0.45**) and is passed to Diffusers. Rectangle annotations default to `--rectangle-mask-mode grabcut`; unreliable refinements are rejected instead of falling back to a full rectangular source tile. Debug artifacts include `Before / Composite / Label Mask / AI Edit Band / After`.
-
-Official upstream resources:
-
-- Model: <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting>
-- Files: <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting/tree/main>
-- Diffusers inpainting docs: <https://huggingface.co/docs/diffusers/using-diffusers/inpaint>
-
-### Install the AI runtime
-
-Downloading the checkpoint is not enough. Install the generative runtime as well:
-
-```bash
-python -m pip install -U 'scenepaste[generative]'
-```
-
-For a source checkout with Qt GUI:
-
-```bash
-python -m pip install -e '.[gui-qt,generative]'
-```
-
-### Recommended ScenePaste download
-
-Do not download every duplicate weight format in the upstream repository. ScenePaste downloads only the FP16 Diffusers components required for local inference:
-
-```bash
-scenepaste model download \
-  --preset light-inpaint \
-  --output ./models/stable-diffusion-inpainting
-```
-
-The selected FP16 subset is roughly **2–3 GB** and ScenePaste requires about **4.5 GB free disk space** before starting.
-
-Recommended directory:
-
-```text
-ScenePaste/models/stable-diffusion-inpainting/
-```
-
-Check it with:
-
-```bash
-scenepaste model doctor --preset light-inpaint \
-  --model ./models/stable-diffusion-inpainting
-```
-
-Generate with:
-
-```bash
-scenepaste generate \
-  --objects ./objects \
-  --backgrounds ./backgrounds \
-  --output ./generated \
-  --generation-mode generative-paste \
-  --generator-backend light-inpaint \
-  --generator-model ./models/stable-diffusion-inpainting \
-  --generator-strength 0.35 \
-  --rectangle-mask-mode grabcut \
-  --generator-debug-artifacts
-```
-
-> **Download compatibility:** ScenePaste 9.8.2+ disables Hugging Face Xet/CAS by default and uses the more compatible plain HTTP path. This avoids common `cas-server.xethub.hf.co` 401 failures on mirrors/restricted networks. Partial `local_dir` downloads can be kept and retried.
-
-## Qwen-Image-Edit: advanced high-resource mode
-
-Qwen support remains available, but it is no longer the default recommendation. Qwen-Image is a **20B** image foundation model, so complete local deployment is substantially more demanding in disk space, memory and VRAM.
-
-- Model: <https://huggingface.co/Qwen/Qwen-Image-Edit-2511>
-- Official repository: <https://github.com/QwenLM/Qwen-Image>
-
-For local Qwen downloads, ScenePaste now checks free disk space first and recommends at least **55 GB free** before starting. On ordinary machines, prefer `light-inpaint` or run Qwen on a separate GPU server and use the `qwen-image-edit` HTTP bridge.
-
-- [Lightweight Inpainting guide](docs/LIGHT_INPAINT.md)
-- [Native Qwen guide](docs/QWEN_NATIVE.md)
+V10 removed Stable Diffusion / Qwen / Diffusers generative backends. Review assets in **Asset Studio**, then synthesize with controllable Copy-Paste via `scenepaste generate` or the desktop **batch factory**.

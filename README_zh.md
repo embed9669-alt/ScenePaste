@@ -4,41 +4,17 @@
 
 **面向计算机视觉的可控训练数据资产与合成工具。**
 
-ScenePaste V10 把主线收敛为 **真实素材 + 人工可控 Mask + 可控 Copy-Paste**。生成模型不再负责决定目标长什么样，而是降为实验功能。核心工作流是：先从真实标注/自动分割得到初始 Mask，在「素材工作室」人工修正前景与背景移除范围，保存成可追溯的前景/背景资产，再做大规模可控合成。
+ScenePaste V10 把主线收敛为 **真实素材 + 人工可控 Mask + 可控 Copy-Paste**。核心工作流是：先从真实标注/自动分割得到初始 Mask，在「素材工作室」人工修正前景与背景移除范围，保存成可追溯的前景/背景资产，再做大规模可控合成。
 
 **真实图片 → 自动/已有分割 → 素材工作室人工修 Mask → 透明前景 + 干净背景 → Label-First Copy-Paste → Auto Label → QA → Train/Evaluate**
 
 > **当前版本：v10.0.0 Stable（Copy-Paste only）。** 已移除 Stable Diffusion / Qwen / Diffusers 等生成式后端；生产路径仅为人工审核素材 + 可控 Copy-Paste。真实训练收益仍应以独立真实验证集/测试集为准。
 
-## 桌面体验收敛（v9.8）
+![ScenePaste 欢迎主页：素材工作室 · 批量合成 · 加载示例](docs/images/ui_demo.gif)
 
-V9.9 进一步修正轻量 AI 生成逻辑：默认保留工程原贴图主体，矩形 bbox 先自动细化成前景 Mask，Stable Diffusion 只修目标边缘，默认融合强度降到 `0.35`，避免“换成另一辆网上风格的车”。
+## 桌面主线（Copy-Paste only）
 
-V9.8 重点不再增加模型，而是把第一次打开和日常使用流程做得更像成熟桌面工具：
-
-- Welcome Home 现在把 `素材工作室` 作为主入口，并保留批量数据工厂、最近工程与快速开始；
-- 菜单按 **文件 / 素材 / 场景 / 编辑 / 生成 / 数据 / 视图 / 帮助** 重新归类；
-- 工具栏把 `素材工作室` 作为主按钮，批量数据工厂作为后续生成入口；
-- 使用 `QSettings` 记住窗口、三栏比例、主题、最近工程与最近素材目录；
-- AI 数据工厂把“高级设置”更名为 **运行与性能**，Qwen 参数只在 Qwen 本地模式显示；
-- 模型区默认只展示状态、本地目录和“安装轻量 AI 模型”，模型 ID / 下载源收进“高级下载设置”；
-- 新增 **试生成 10 张**：输出到独立 `_trials/` 目录，不污染正式数据集；
-- 任务仪表盘增加 **QA 拒绝** 与 **模型回退**，生成结束后汇总质量信息。
-
-## 更好用的桌面工作流（v9.6）
-
-桌面端不再要求普通用户理解 `generation_mode` / `generator_backend`。进入 **批量数据工厂** 后，优先选择任务方案：
-
-- **可控 Copy-Paste（推荐）**：使用人工审核后的前景/背景，标签最稳定；
-- **AI 轻量修图 · SD Inpainting（实验）**：保留用于研究/对比，不再作为生产默认路线；
-- **OpenCV 轻量融合**：无 GPU / 无模型下载时的最低成本方案；
-- **Qwen 高质量修图 · 20B（高级）**：效果上限更高，但磁盘/显存成本很高；
-- **Qwen 服务**：推荐把 20B 模型放独立 GPU 主机，本机只调用服务；
-- **高级自定义**：保留底层 backend / plugin / HTTP 接口。
-
-模型、Qwen 服务和高级参数会按当前方案自动显示/隐藏。右侧改为任务仪表盘，优先展示生成进度、速度、失败数、目标数和最近生成对比；详细日志默认折叠。
-
-## V9 主线能力
+Welcome Home 以 **素材工作室** 为主入口，并保留批量数据工厂、最近工程与快速开始。菜单按 **文件 / 素材 / 场景 / 编辑 / 合成 / 数据 / 视图 / 帮助** 归类；右侧检视面板为 **实例 / 变换·外观 / 批量默认**。批量数据工厂只做可控 Copy-Paste（含试生成 10 张）。
 
 ```text
 Background
@@ -46,65 +22,45 @@ Background
 Scene Region / Placement Constraints
    ↓
 Label-First Planner
-(class + position + scale + mask intent)
    ↓
-┌──────────────────┬──────────────────────┬─────────────────────┐
-│ Copy-Paste       │ Generative Paste     │ Generative Object   │
-│ deterministic    │ reference + inpaint  │ prompt + mask edit  │
-└──────────────────┴──────────────────────┴─────────────────────┘
-   ↓
-Label Consistency QA / Mask Refine
+Copy-Paste（paste_one）
    ↓
 YOLO Detect / Seg / OBB / COCO / Semantic
    ↓
 QA / Hard Mining / Data Curation / Sharding
 ```
 
-V9 内置后端：
-
-- `copy-paste`：原有稳定生成器；
-- `opencv-harmonize`：CPU 可运行的轻量融合 baseline；
-- `light-inpaint`：实验性本地 Mask Inpainting，可用于研究对比；生产主线优先使用人工审核素材 + `copy-paste`；
-- `diffusers-inpaint`：高级自定义，加载其他兼容 Diffusers Inpainting 模型；
-- `http`：通过统一 JSON 接口连接 Qwen-Image、ComfyUI 或自建生成服务；
-- `plugin`：通过 `module:object` 接入自定义 Python 后端。
-
-快速检查环境：
+快速检查放置计划：
 
 ```bash
-scenepaste factory doctor
 scenepaste factory plan --count 20 --hardcase-recipe small-object -o plans.json
 ```
 
-一个不依赖大模型的 V9 生成式流程：
+可控 Copy-Paste 批量合成：
 
 ```bash
 scenepaste generate \
   --objects ./objects \
   --backgrounds ./backgrounds \
-  --output ./generated-v9 \
+  --output ./generated \
   --class-map person=0,vehicle=1 \
   --count 5000 \
-  --generation-mode generative-paste \
-  --generator-backend opencv-harmonize \
-  --label-qa-policy warn \
-  --label-refine-mode change \
   --hardcase-recipe small-object \
   --output-format all
 ```
 
-![ScenePaste 桌面编辑器：右侧三 Tab（实例 / 变换·外观 / 批量生成）](docs/images/ui_overview.png)
+![ScenePaste 桌面编辑器：右侧三 Tab（实例 / 变换·外观 / 批量默认）](docs/images/ui_overview.png)
 
 ### 整条工作流（动图）
 
-从抠图素材到数据闭环（可本地重录：`python scripts/capture_workflow_gifs.py`；加 `--all` 会连 Explorer / 数据闭环一起录）：
+从抠图 / 素材审核到数据闭环（可本地重录：`python3 scripts/capture_workflow_gifs.py`；加 `--all` 会连 Explorer / 数据闭环一起录）：
 
 | 步骤 | 做什么 |
 |---|---|
 | 0. 抠图工作室 | 打开文件夹 → 缩略图浏览 → 手绘 / 点选 / 自动抠图 → LabelMe JSON |
 | 1. 摆场景 | 放置 cutout，缩放 / 旋转，调整图层顺序 |
 | 2. 目标外观 | 滑条微调；「换一种随机外观」会回填到滑条 |
-| 3. 批量默认 | 「批量生成」Tab：场景 Recipe / 目标外观 / Blend / 负样本 |
+| 3. 批量默认 | 「批量默认」Tab：场景 Recipe / 目标外观 / Blend / 负样本 |
 | 4. Explorer | 浏览生成图与 Detect/Seg/OBB 等叠加 |
 | 5. 数据闭环 | 难例 / QA / 对比 / 策展 / 分片入口 |
 
@@ -114,18 +70,20 @@ scenepaste generate \
 
 ![2 · 目标外观预览](docs/images/gif_02_appearance.gif)
 
-![3 · 批量生成默认](docs/images/gif_03_batch_defaults.gif)
+![3 · 批量默认](docs/images/gif_03_batch_defaults.gif)
 
 ![4 · Dataset Explorer](docs/images/gif_04_explorer.gif)
 
 ![5 · 数据闭环中心](docs/images/gif_05_data_loop.gif)
 
 <details>
-<summary>浅色主题、项目设置与抠图工作室截图</summary>
+<summary>浅色主题、项目设置、素材工作室与抠图工作室截图</summary>
 
 ![浅色主题（同样展示三 Tab 检视面板）](docs/images/ui_overview_light.png)
 
 ![项目设置：场景 / 目标外观 Recipe、Blend、负样本比例](docs/images/ui_settings.png)
+
+![素材工作室：人工修前景 Mask 与背景移除 Mask](docs/images/ui_asset_studio.png)
 
 ![抠图工作室：左侧目录缩略图 + 画布标注](docs/images/ui_cutout_studio.png)
 
@@ -179,7 +137,7 @@ ScenePaste **不是新的 Copy-Paste 论文算法**。它的价值是把 Copy-Pa
 
 - **PySide6 可视化场景编辑器**：拖动、缩放、旋转、翻转和复制目标，并按前后层级正确处理遮挡。
 - **抠图工作室**：打开图片文件夹后左侧显示目录路径与缩略图；支持手绘多边形、**点选 SAM2**、rembg / GroundingSAM2 自动抠图，保存为 LabelMe JSON；模型可一键下载（国内可用 hf-mirror）。
-- **主界面批量生成**：右侧常驻场景 Recipe / 目标外观 / Blend / 负样本比例；批量套用、大规模生成与工程保存共用。
+- **主界面批量默认**：右侧常驻场景 Recipe / 目标外观 / Blend / 负样本比例；批量套用、数据工厂与工程保存共用。
 - **目标外观实时预览**：选中实例后可启用 Recipe，调节亮度/对比度/饱和度/模糊，或「换一种」重采样；只改 RGB，标签几何不变。
 - **目标外观 Recipe**：按类别控制贴图光度与低分辨率退化（alpha-aware 边缘），并写入每实例 metadata / QA 覆盖统计。
 - **场景增强 Recipe + 融合模式**：整图相机/监控/弱光增强，支持 alpha / hard / gaussian。
@@ -703,7 +661,6 @@ CI 的 release-smoke 会构建 wheel、以非 editable 方式安装、切换到�
 ScenePaste 是一个**独立开发的开源项目**，并非下列项目的 Fork。下列项目在数据工厂架构、生成式图像编辑、交互式分割、自动标注、标注格式兼容以及大规模数据组织等方面，为 ScenePaste 提供了重要参考；项目名称的列出不代表任何官方背书或代码归属关系。
 
 - **[NVIDIA Physical AI Data Factory](https://github.com/NVIDIA/physical-ai-data-factory)** — “数据工厂”整体工作流的重要参考，包括合成数据生成、增强、标注、质量控制以及面向 Physical AI 的数据闭环。
-- **[Qwen-Image / Qwen-Image-Edit](https://github.com/QwenLM/Qwen-Image)** — ScenePaste 本地 Qwen / Qwen 服务模式所集成的主要生成式图像编辑模型家族。
 - **[Meta SAM 2](https://github.com/facebookresearch/sam2)** — 可提示分割、Mask 辅助标注和交互式抠图方向的重要参考。
 - **[Grounded SAM 2](https://github.com/IDEA-Research/Grounded-SAM-2)** — 开放词汇 Grounding + Segmentation、自动目标提取工作流的重要参考。
 - **[LabelMe](https://github.com/wkentaro/labelme)** 与 **[X-AnyLabeling](https://github.com/CVHub520/X-AnyLabeling)** — 标注格式和 AI 辅助标注交互的重要参考。ScenePaste 支持与 LabelMe 风格标注互操作；这两个 GPL 项目在此仅作为设计参考/兼容目标列出，ScenePaste 不复制或捆绑其源代码。
@@ -719,51 +676,6 @@ ScenePaste 同时与 **Hugging Face / Diffusers、OpenCV、PySide6 / Qt、YOLO�
 MIT，详见 [LICENSE](LICENSE)。
 
 
-## 推荐 AI 模型：轻量 Mask Inpainting
+## 生成式后端说明
 
-可选的轻量生成式后端使用 **Stable Diffusion v1.5 Inpainting**。V9.9 起它采用“工程贴图身份保留”逻辑；V10 起该能力明确降为**实验功能**。生产默认主线是“素材工作室人工审核前景/背景 + 可控 Copy-Paste”。
-
-### V9.9 轻量 AI 修图实际逻辑
-
-```text
-工程目标素材
-   ↓
-矩形 bbox 标注 → GrabCut 自动前景细化（不会整块矩形贴进去）
-polygon / segmentation → 直接使用真实前景 Mask
-   ↓
-先做确定性 Copy-Paste（这一步决定“是哪一辆车/哪一个人”）
-   ↓
-Label Mask（训练标签）
-   ↓
-从 Label Mask 内部生成窄边缘 AI Edit Band
-   ↓
-Stable Diffusion Inpainting 只修改边缘带
-   ↓
-目标中心/主体保持工程原贴图像素不变
-   ↓
-Label QA + 自动重试 / fallback
-```
-
-默认 `AI 融合强度` 为 **0.35**，推荐范围 **0.25~0.45**。强度参数会真实传入 Diffusers；同时 ScenePaste 还会对 AI 输出做二次软混合，因此默认优先保留工程原目标身份与结构。
-
-> 如果目标来自 LabelMe `rectangle`，V9.9 默认使用 `--rectangle-mask-mode grabcut` 把 bbox 细化为前景 Mask。GrabCut 无法得到可信前景时会**拒绝该素材**，不会再退回“整块矩形贴图”。已有 polygon/segmentation 标注不受影响。
-
-### 生成式后端已移除
-
-V10 Copy-Paste only 清理后不再提供 SD / Qwen / Diffusers 安装与下载命令。请使用 `scenepaste generate` / GUI 批量工厂的可控 Copy-Paste。
-
-## GUI 模型策略
-
-Qt 的 **批量数据工厂**现在把可控性放在第一位：
-
-1. `可控 Copy-Paste（推荐）`
-2. `AI 轻量修图 · SD Inpainting（实验）`
-3. `OpenCV 轻量融合 · 无大模型`
-4. `Qwen 高质量修图 · 20B（高级）`
-5. `Qwen 服务模式`
-6. `高级自定义`
-
-模型区域会显示当前方案的资源提示。下载前自动检查目标磁盘空间；选择 Qwen 时会明确提示这是 20B 高资源模式。
-
-- [轻量 Inpainting 说明](docs/LIGHT_INPAINT.md)
-- [Qwen 本地原生接入说明](docs/QWEN_NATIVE.md)
+V10 已移除 Stable Diffusion / Qwen / Diffusers 等生成式后端。请使用「素材工作室」审核资产后，通过 `scenepaste generate` 或 GUI **批量数据工厂**做可控 Copy-Paste 合成。

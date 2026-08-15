@@ -125,7 +125,7 @@ def _bias_splitter(win: MainWindow) -> None:
 
 
 def _show_right_tab(win: MainWindow, index: int) -> None:
-    """0=实例, 1=变换·外观, 2=生成默认."""
+    """0=实例, 1=变换·外观, 2=批量默认."""
     tabs = getattr(win, "_right_tabs", None)
     if tabs is not None and 0 <= index < tabs.count():
         tabs.setCurrentIndex(index)
@@ -441,7 +441,7 @@ def record_batch_defaults(app: QApplication) -> Path:
         inst.invalidate_cache()
     win.doc.select(win.doc.instances[0].uid)
     win.doc._emit(); _fit_canvas(win); _bias_splitter(win)
-    _show_right_tab(win, 2)  # 生成默认
+    _show_right_tab(win, 2)  # 批量默认
     _drain(app, 0.2)
 
     frames = []
