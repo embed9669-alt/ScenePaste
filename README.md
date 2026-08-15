@@ -654,7 +654,7 @@ Top-level `analyze_datasets.py`, `split_dataset.py` and `merge_datasets.py` are 
 pytest -q
 ```
 
-For the v9.8.1 release, the headless suite verifies the core generator, project manifests, Detect/Seg/OBB hard mining, overlap-aware profiles, generation visibility diagnostics, leakage checks, diversity selection, real-vs-synthetic comparison, WebDataset sharding, live run telemetry and the established annotation/template/data-tool paths. Qt-dependent GUI modules are additionally exercised by CI when `PySide6` is installed. The exact local test count is reported by `pytest`; Qt-dependent modules run in the cross-platform CI matrix when PySide6 is installed. CI also installs the built wheel outside the repository and runs an end-to-end sample smoke test.
+For the v10.0.0 release, the headless suite verifies the core generator, project manifests, Detect/Seg/OBB hard mining, overlap-aware profiles, generation visibility diagnostics, leakage checks, diversity selection, real-vs-synthetic comparison, WebDataset sharding, live run telemetry and the established annotation/template/data-tool paths. Qt-dependent GUI modules are additionally exercised by CI when `PySide6` is installed. The exact local test count is reported by `pytest`; Qt-dependent modules run in the cross-platform CI matrix when PySide6 is installed. CI also installs the built wheel outside the repository and runs an end-to-end sample smoke test.
 
 Build a clean release archive:
 

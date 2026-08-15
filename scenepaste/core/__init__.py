@@ -73,6 +73,16 @@ from .object_appearance import (
     save_object_appearance_recipe,
     validate_object_appearance_recipe,
 )
+from .asset_studio import (
+    AssetStudioExport,
+    binary_mask,
+    clean_mask,
+    export_asset_bundle,
+    fill_mask_holes,
+    make_clean_background,
+    make_foreground_rgba,
+    morph_mask,
+)
 
 # Underscore-prefixed aliases retained for call sites that still use the
 # historical private names. Prefer the public non-underscore spellings.
@@ -158,9 +168,12 @@ __all__ = [
     "write_semantic_classes",
     "yolo_line",
     "yolo_seg_line",
+    "AssetStudioExport",
+    "binary_mask",
+    "clean_mask",
+    "export_asset_bundle",
+    "fill_mask_holes",
+    "make_clean_background",
+    "make_foreground_rgba",
+    "morph_mask",
 ]
-
-from .asset_studio import (
-    AssetStudioExport, binary_mask, clean_mask, export_asset_bundle, fill_mask_holes,
-    make_clean_background, make_foreground_rgba, mask_to_polygons, morph_mask,
-)

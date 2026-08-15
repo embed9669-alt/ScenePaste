@@ -167,11 +167,11 @@ def plan_label_first(
     else:
         n = rng.randint(lo, hi)
     labels = [k for k, _v in sorted(cfg.class_map.items(), key=lambda kv: kv[1])]
-    rows: list[PlacementSpec] = []
+    fallback_rows: list[PlacementSpec] = []
     for _ in range(n):
         label = rng.choice(labels)
-        cx, by, hr = _default_position(cfg, rng, hardcase_recipe, rows)
-        rows.append(
+        cx, by, hr = _default_position(cfg, rng, hardcase_recipe, fallback_rows)
+        fallback_rows.append(
             PlacementSpec(
                 class_id=int(cfg.class_map[label]),
                 label=label,
@@ -183,7 +183,7 @@ def plan_label_first(
                 difficulty=(hardcase_recipe or {}).get("name"),
             )
         )
-    return rows
+    return fallback_rows
 
 
 def placement_to_dict(spec: PlacementSpec) -> dict:

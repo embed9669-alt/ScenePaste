@@ -40,7 +40,7 @@ def resolve_placement_regions(
         source = "ground-prior"
 
     # Explicit forbidden polygons subtract from both generic/class masks.
-    forbidden = np.zeros((height, width), dtype=np.uint8)
+    forbidden: np.ndarray = np.zeros((height, width), dtype=np.uint8)
     json_path = Path(background_path).with_suffix(".json")
     if json_path.is_file():
         try:
@@ -50,7 +50,7 @@ def resolve_placement_regions(
                     continue
                 mask = shape_to_mask(shape, height, width)
                 if mask is not None:
-                    forbidden = cv2.bitwise_or(forbidden, mask)
+                    forbidden = cv2.bitwise_or(forbidden, np.asarray(mask, dtype=np.uint8))
         except Exception:
             pass
     if np.any(forbidden):

@@ -31,7 +31,6 @@ sys.path.insert(0, str(ROOT))
 
 from PIL import Image  # noqa: E402
 from PySide6.QtCore import QTimer, Qt  # noqa: E402
-from PySide6.QtGui import QFocusEvent  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from compose_app_qt.app import MainWindow  # noqa: E402

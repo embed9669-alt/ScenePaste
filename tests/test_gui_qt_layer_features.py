@@ -151,12 +151,12 @@ def test_hidden_instance_excluded_from_composite(qapp, tmp_path):
     uid_b = win.doc.instances[-1].uid
 
     comp_both = composite_from_doc(win.doc)
-    pixels_both = sum(sum(p) for p in comp_both.convert("RGB").getdata())
+    pixels_both = sum(sum(p) for p in comp_both.convert("RGB").get_flattened_data())
 
     # Hide one — composite must lose exactly that instance's contribution.
     win.controller.set_visibility(uid_b, False)
     comp_one = composite_from_doc(win.doc)
-    pixels_one = sum(sum(p) for p in comp_one.convert("RGB").getdata())
+    pixels_one = sum(sum(p) for p in comp_one.convert("RGB").get_flattened_data())
 
     assert pixels_both != pixels_one, "hiding an instance should change the composite"
 

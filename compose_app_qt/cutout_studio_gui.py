@@ -48,7 +48,7 @@ from scenepaste.core.cutout_models import (
     list_cutout_models,
     predict_cutout,
 )
-from scenepaste.core.io import imread_with_exif, imwrite_unicode
+from scenepaste.core.io import imread_with_exif
 from scenepaste.core.labelme import save_cutout_as_labelme
 from scenepaste.core.models import IMAGE_SUFFIXES
 

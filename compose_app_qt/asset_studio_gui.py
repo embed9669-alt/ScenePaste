@@ -19,7 +19,7 @@ from typing import List, Optional, Sequence
 import cv2
 import numpy as np
 from PySide6.QtCore import QPointF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QIcon, QImage, QImageReader, QPainter, QPixmap
+from PySide6.QtGui import QIcon, QImage, QImageReader, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,

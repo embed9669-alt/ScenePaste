@@ -215,7 +215,7 @@ def test_mainwindow_has_menus(qapp):
     win = MainWindow(theme_mode="dark")
     names = [a.text() for a in win.menuBar().actions()]
     assert "文件" in names
-    assert "生成" in names
+    assert "合成" in names
     assert "数据" in names
     assert win.act_auto_cutout is not None
     win.close()

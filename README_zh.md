@@ -602,7 +602,7 @@ ScenePaste/
 pytest -q
 ```
 
-正式 v9.8.1 使用 `pytest` 验证核心生成、Project Manifest、Detect/Seg/OBB Hard Mining、重叠分布学习、visible-ratio 诊断及既有闭环功能；Qt 相关模块由安装 PySide6 的 Windows/Linux/macOS CI 覆盖。CI 还会从构建出的 wheel 做一次源码树之外的端到端安装冒烟。
+正式 v10.0.0 使用 `pytest` 验证核心生成、Project Manifest、Detect/Seg/OBB Hard Mining、重叠分布学习、visible-ratio 诊断及既有闭环功能；Qt 相关模块由安装 PySide6 的 Windows/Linux/macOS CI 覆盖。CI 还会从构建出的 wheel 做一次源码树之外的端到端安装冒烟。
 
 构建干净 Release：
 
@@ -658,7 +658,7 @@ CI 的 release-smoke 会构建 wheel、以非 editable 方式安装、切换到�
 
 ## 致谢与设计参考
 
-ScenePaste 是一个**独立开发的开源项目**，并非下列项目的 Fork。下列项目在数据工厂架构、生成式图像编辑、交互式分割、自动标注、标注格式兼容以及大规模数据组织等方面，为 ScenePaste 提供了重要参考；项目名称的列出不代表任何官方背书或代码归属关系。
+ScenePaste 是一个**独立开发的开源项目**，并非下列项目的 Fork。下列项目在数据工厂架构、交互式分割、自动标注、标注格式兼容以及大规模数据组织等方面，为 ScenePaste 提供了重要参考；项目名称的列出不代表任何官方背书或代码归属关系。
 
 - **[NVIDIA Physical AI Data Factory](https://github.com/NVIDIA/physical-ai-data-factory)** — “数据工厂”整体工作流的重要参考，包括合成数据生成、增强、标注、质量控制以及面向 Physical AI 的数据闭环。
 - **[Meta SAM 2](https://github.com/facebookresearch/sam2)** — 可提示分割、Mask 辅助标注和交互式抠图方向的重要参考。
@@ -667,7 +667,7 @@ ScenePaste 是一个**独立开发的开源项目**，并非下列项目的 Fork
 - **[rembg](https://github.com/danielgatis/rembg)** — ScenePaste 自动抠图流程可选使用的前景提取后端。
 - **[WebDataset](https://github.com/webdataset/webdataset)** — 大规模生成数据确定性 tar 分片与顺序访问设计的重要参考。
 
-ScenePaste 同时与 **Hugging Face / Diffusers、OpenCV、PySide6 / Qt、YOLO、COCO** 等生态保持兼容或互操作。
+ScenePaste 同时与更广泛的 **OpenCV**、**PySide6 / Qt**、**YOLO**、**COCO** 生态互操作（可选 Hugging Face 栈仅用于抠图/嵌入）。
 
 关于“直接依赖 / 可选集成 / 设计参考 / 模型资产 / 第三方许可证”的明确边界，请查看 **[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)** 和 [docs/INSPIRATION.md](docs/INSPIRATION.md)。
 

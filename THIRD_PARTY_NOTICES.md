@@ -2,8 +2,6 @@
 
 > Note: ScenePaste Copy-Paste only builds no longer depend on Diffusers / Qwen image-edit runtimes. Notices below may still document optional cutout/embedding stacks and historical references.
 
-Party Notices
-
 This document clarifies third-party relationships for ScenePaste.
 
 ScenePaste itself is released under the MIT License (see `LICENSE`). Third-party packages, model checkpoints, datasets, formats, and external projects remain subject to their own licenses and terms. This file is informational and is not legal advice.
@@ -38,21 +36,20 @@ These packages are **not relicensed by ScenePaste**. Users and redistributors sh
 
 ## 3. Model integrations and model assets
 
-### Stable Diffusion v1.5 Inpainting
+### Stable Diffusion v1.5 Inpainting (historical)
 
 - Upstream model: https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting
-- Relationship: default optional lightweight local inpainting checkpoint used by the `light-inpaint` preset.
-- The upstream model card lists the **CreativeML OpenRAIL-M** license. Model weights are downloaded separately and are not bundled in ScenePaste release archives.
-- ScenePaste downloads only the FP16 Diffusers components needed for local inference; this selection does not change or relicense the upstream model.
-- Users should review the exact upstream model card/license before redistribution or deployment.
+- Relationship: **removed in V10**. Previously an optional lightweight local inpainting checkpoint for the `light-inpaint` preset.
+- The upstream model card lists the **CreativeML OpenRAIL-M** license. ScenePaste no longer downloads or ships these weights.
+- Kept here only for license/history clarity for older releases and forks.
 
-### Qwen-Image / Qwen-Image-Edit
+### Qwen-Image / Qwen-Image-Edit (historical)
 
 - Upstream repository: https://github.com/QwenLM/Qwen-Image
-- Relationship: optional model integration and major design reference for generative image editing.
+- Relationship: **removed in V10**. Previously an optional generative image-edit integration and design reference.
 - Upstream repository code is published under **Apache-2.0**.
-- ScenePaste does not bundle Qwen model weights in its release archive. The `scenepaste qwen download` workflow downloads model assets separately to a user-selected directory.
-- **Model checkpoints may have model-card-specific terms. Always review the license/terms shown on the exact model repository before downloading, redistributing, or deploying a checkpoint.**
+- ScenePaste no longer bundles Qwen model weights or the `scenepaste qwen` download workflow.
+- Kept here only for license/history clarity for older releases and forks.
 
 ### Meta SAM 2
 

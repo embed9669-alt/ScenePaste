@@ -19,7 +19,7 @@ import json
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -140,7 +140,8 @@ def make_foreground_rgba(
     alpha = m.astype(np.float32)
     sigma = max(0.0, float(feather_px))
     if sigma > 0:
-        alpha = cv2.GaussianBlur(alpha, (0, 0), sigma)
+        blurred = cv2.GaussianBlur(alpha, (0, 0), sigma)
+        alpha = np.asarray(blurred, dtype=np.float32)
         # Keep the alpha support local; faint full-image blur tails are not useful.
         support = morph_mask(m, max(1, int(round(sigma * 3)))) > 0
         alpha[~support] = 0
